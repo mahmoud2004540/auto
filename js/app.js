@@ -218,7 +218,7 @@ function drawGrid() {
   const major = g * 5;
   ctx.lineWidth = 1;
   for (let pass = 0; pass < 2; pass++) {
-    ctx.strokeStyle = App.webLook ? (pass ? 'rgba(140,170,255,0.30)' : 'rgba(140,170,255,0.13)') : (pass ? '#36404d' : '#2a323c');
+    ctx.strokeStyle = App.webLook ? (pass ? 'rgba(175,200,255,0.34)' : 'rgba(175,200,255,0.16)') : (pass ? '#36404d' : '#2a323c');
     ctx.beginPath();
     for (let x = x0; x <= br.x; x += g) {
       const isMaj = Math.abs(x / major - Math.round(x / major)) < 1e-6;
@@ -285,7 +285,7 @@ function render() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (App.v3d) { render3D(); return; }
   ctx.fillStyle = App.bedit ? '#2e333b' : (App.opts && App.opts.bg) || '#212830'; ctx.fillRect(0, 0, CW, CH);
-  if (App.webLook && !App.bedit) { const gr = ctx.createRadialGradient(CW * 0.55, CH * 0.6, 0, CW * 0.55, CH * 0.6, Math.max(CW, CH) * 0.7); gr.addColorStop(0, 'rgba(70,110,230,0.45)'); gr.addColorStop(1, 'rgba(20,30,70,0)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, CW, CH); }
+  if (App.webLook && !App.bedit) { const gr = ctx.createRadialGradient(CW * 0.55, CH * 0.6, 0, CW * 0.55, CH * 0.6, Math.max(CW, CH) * 0.7); gr.addColorStop(0, 'rgba(60,100,225,0.75)'); gr.addColorStop(1, 'rgba(30,45,110,0)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, CW, CH); }
   const paper = App.space !== 'Model';
   if (paper) { syncActiveVp(); renderLayout(); }
   else if (App.modes.grid) drawGrid();

@@ -201,7 +201,7 @@
     const ch = document.querySelector('#cmdrow .chev'); if (ch) { ch.dataset.orig = ch.dataset.orig || ch.textContent; ch.textContent = UI.web ? '›' : ch.dataset.orig; }
     byId('app').classList.toggle('webui', UI.web);
     if (!UI.web) { giveBack(); byId('app').classList.remove('wbmax'); if (W.prevBg) { App.opts.bg = W.prevBg; W.prevBg = null; } }
-    else { if (!W.prevBg) { W.prevBg = App.opts.bg; App.opts.bg = '#24325a'; } showPanel(); syncTop(); webIdle(); }
+    else { if (!W.prevBg) { W.prevBg = App.opts.bg; App.opts.bg = '#27398a'; } showPanel(); syncTop(); webIdle(); }
     UI.refreshStatus(); resize(); App.dirty = true;
   };
 

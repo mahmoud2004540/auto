@@ -542,3 +542,38 @@ svg.ic .fb { fill: #4aa8ff; stroke: none; } svg.ic .fy { fill: #f5c542; stroke: 
 #app.webui #wbBar { background: #262d3f; }
 #app.webui #cmdline { background: rgba(34,48,90,.92); border-top: 1px solid var(--wbline); }
 #app.webui #vplabel .chip { background: rgba(44,61,107,.85); }
+
+/* Web workspace — colors sampled from the reference photos */
+#app.webui { --wb0: #282c52; --wb1: #2f3a7e; --wb2: #34418a; --wb3: #4656a8; --wbline: #4a5aa8; --wbacc: #3d7cf2; }
+#app.webui #wbHead { background: #282c52; }
+#app.webui #wbInfo { background: #262a66; border-bottom-color: #3a4896; }
+#app.webui #wbInfo .wbi { background: #0a55f0; }
+#app.webui #wbInfo #wbLearn { background: #3259d2; border-color: #3259d2; }
+#app.webui #wbTools { background: linear-gradient(90deg, #3a4590 0%, #46509c 55%, #5a5f92 100%); border-bottom-color: #4a5aa8; }
+#app.webui #wbRail { background: #2b3672; }
+#app.webui #wbRail button.on { background: #3e4f9c; }
+#app.webui #wbPanel { background: #3e4f9c; border-right-color: #5568b8; }
+#app.webui .wbph { border-bottom-color: #5568b8; }
+#app.webui #wbBar { background: #343a66; border-bottom-color: #3f4a86; }
+#app.webui #vplabel .chip { background: #232a55; color: #8fb8ff; }
+#app.webui #wbCube { background: #8ea4e6; color: #e8eeff; border-color: #c3d0f5; box-shadow: 2px 2px 0 #5b6fb8; }
+#app.webui #cmdline { background: #3a5ac0; border-top: 1px solid #6a88e0; }
+#app.webui #prompt .kw { background: #5b74c8; border-color: #8aa0e6; color: #fff; }
+#wbCmdBtns #wbEsc { background: #6f7aab; }
+#wbCmdBtns #wbOk { background: #4aa3ea; }
+#app.webui #status { background: #3a5cc8; border-top-color: #5a7ad8; }
+#app.webui #ltabs .lt.active { background: #6a9be8; color: #fff; }
+#app.webui .wbtx { color: #e8eeff; }
+#app.webui .wbtx.on { background: #3d7cf2; }
+#app.webui #dyn { background: #eef6fb; color: #33415f; border-color: #c3d0f5; }
+#app.webui .wbbt { background: #34418a; }
+#app.webui .sptable th { background: #2f3a7e; }
+#app.webui #wbTools { background: linear-gradient(90deg, #2c3470 0%, #343c78 55%, #3d4170 100%); }
+#app.webui #wbBar { background: #2f3258; }
+#app.webui #wbRail { background: #2a3170; }
+#app.webui #cmdline { background: rgba(38,58,150,.55); border-top: 1px solid rgba(140,170,255,.35); }
+#app.webui #cmdinput::placeholder { color: #c9d4ee; font-style: normal; }
+#app.webui #status { background: #2c3f8e; border-top-color: #3d52a8; }
+#app.webui #ltabs .lt.active { background: #4a78d8; }
+#app.webui .wbtx.on { background: #3a6fe0; }
+#app.webui #prompt .muted { color: #d6def4; font-style: normal; }
