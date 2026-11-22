@@ -51,8 +51,7 @@ function visible(e) { const l = layerOf(e); return l.on && !l.frozen; }
 function editable(e) { const l = layerOf(e); return l.on && !l.frozen && !l.locked; }
 function addEnt(e) {
   if (!e.layer) e.layer = App.doc.cur;
-  if (e.type === 'dim' && e.prec === undefined && App.doc.dimPrec !== undefined && e.kind !== 'ang') e.prec = App.doc.dimPrec;
-  if (e.type === 'dim' && !e.txt && App.doc.dimSuffix && e.kind !== 'ang') e.txt = `<> ${App.doc.dimSuffix}`;
+  if ((e.type === 'dim' || e.type === 'leader') && !e.ds && typeof applyDimStyle === 'function') applyDimStyle(e);
   if (e.id === undefined && !e._keepColor) {
     if (!e.color && App.doc.curColor) e.color = App.doc.curColor;
     if (!e.lt && App.doc.curLt && e.type !== 'hatch') e.lt = App.doc.curLt;
@@ -296,7 +295,7 @@ function render() {
     const hovered = inSelectMode && App.hover === e.id;
     ctx.strokeStyle = c; ctx.fillStyle = c;
     ctx.lineWidth = 1;
-    const L0 = layerOf(e); ctx.globalAlpha = Math.max(0.1, 1 - (L0.tr || 0) / 100) * (L0.locked ? 0.5 : 1);
+    const L0 = layerOf(e); ctx.globalAlpha = Math.max(0.1, 1 - ((e.tr ?? L0.tr) || 0) / 100) * (L0.locked ? 0.5 : 1);
     applyEntStyle(ctx, e, App.view.s, lwPx);
     if (hovered) ctx.lineWidth = Math.max(ctx.lineWidth, 2.5);
     if (selected) {

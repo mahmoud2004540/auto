@@ -35,14 +35,13 @@ function linDimGeom(e) {
   const q2 = V.add(e.p2, V.mul(n, V.dot(V.sub(e.p3, e.p2), n)));
   const value = Math.abs(V.dot(V.sub(e.p2, e.p1), d));
   const h = e.h || 2.5;
-  const ext = h * 0.5, gap = h * 0.25;
+  const ext = e.exe ?? h * 0.5, gap = e.exo ?? h * 0.25;
   const lines = [];
   const ext1 = V.sub(q1, e.p1), ext2 = V.sub(q2, e.p2);
   const e1 = V.len(ext1) > EPS ? V.norm(ext1) : n;
   const e2 = V.len(ext2) > EPS ? V.norm(ext2) : n;
   if (V.len(ext1) > gap) lines.push([V.add(e.p1, V.mul(e1, gap)), V.add(q1, V.mul(e1, ext))]);
   if (V.len(ext2) > gap) lines.push([V.add(e.p2, V.mul(e2, gap)), V.add(q2, V.mul(e2, ext))]);
-  lines.push([q1, q2]);
   const dir = V.norm(V.sub(q2, q1));
   const arrows = value > EPS ? [{ p: q1, dir: V.mul(dir, -1) }, { p: q2, dir }] : [];
   let trot = Math.atan2(dir.y, dir.x);
@@ -50,12 +49,19 @@ function linDimGeom(e) {
   // keep text readable
   let tr = normAng(trot);
   if (tr > Math.PI / 2 + 1e-6 && tr <= Math.PI * 1.5 + 1e-6) tr -= Math.PI;
-  const s = e.txt ? e.txt.replace('<>', fmt(value, e.prec ?? 2)) : fmt(value, e.prec ?? 2);
+  if (e.tih) tr = 0;
+  const vs = typeof fmtDimVal === 'function' ? fmtDimVal(e, value) : fmt(value, e.prec ?? 2);
+  const s = e.txt ? e.txt.replace('<>', vs) : vs;
   const w = textWidth(s, h);
   const ux = { x: Math.cos(tr), y: Math.sin(tr) }, uy = V.perp(ux);
   const m = V.mid(q1, q2);
-  const tp = V.add(V.add(m, V.mul(ux, -w / 2)), V.mul(uy, h * 0.4));
-  return { lines, arrows, text: { p: tp, h, rot: tr, s }, value, arrowSize: h, q1, q2 };
+  const centered = e.tad === 'center' || e.tih;
+  const tp = V.add(V.add(m, V.mul(ux, -w / 2)), V.mul(uy, centered ? -h / 2 : h * 0.4));
+  if (centered && V.dist(q1, q2) > w + h) { // break the dimension line around the text
+    const half = (Math.abs(V.dot(dir, ux)) * w + Math.abs(V.dot(dir, uy)) * h) / 2 + h * 0.3;
+    lines.push([q1, V.sub(m, V.mul(dir, half))], [V.add(m, V.mul(dir, half)), q2]);
+  } else lines.push([q1, q2]);
+  return { lines, arrows, text: { p: tp, h, rot: tr, s }, value, arrowSize: e.asz || h, q1, q2 };
 }
 
 function arrowPts(a, size) {

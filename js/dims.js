@@ -4,7 +4,7 @@
 function readableRot(a) { let r = normAng(a); if (r > Math.PI / 2 + 1e-6 && r <= Math.PI * 1.5 + 1e-6) r -= Math.PI; return r; }
 function dimText(e, value, prefix = '', suffix = '') {
   const prec = e.prec ?? (e.kind === 'ang' ? 0 : 2);
-  const v = prefix + fmt(value, prec) + suffix;
+  const v = prefix + (e.kind !== 'ang' && typeof fmtDimVal === 'function' ? fmtDimVal(e, value) : fmt(value, prec)) + suffix;
   return e.txt ? e.txt.replace('<>', v) : v;
 }
 function textAlong(mid, rot, s, h, above = true) {
@@ -87,7 +87,7 @@ Types.dim = {
     const g = dimGeom(e);
     for (const l of g.lines) R.line(l[0], l[1]);
     for (const a of g.arcs) R.arc(a.c, a.r, a.a1, a.a2);
-    for (const a of g.arrows) R.fill(arrowPts(a, g.arrowSize));
+    for (const a of g.arrows) drawArrow(R, a, g.arrowSize, e.arr);
     R.text(g.text.p, g.text.h, g.text.rot, g.text.s);
   },
   props: (e) => [
@@ -101,7 +101,7 @@ Types.dim = {
     const g = dimGeom(e);
     const out = g.lines.map(l => ({ type: 'line', p1: l[0], p2: l[1] }));
     for (const a of g.arcs) out.push({ type: 'arc', c: a.c, r: a.r, a1: a.a1, a2: a.a2 });
-    for (const a of g.arrows) out.push({ type: 'hatch', loops: [arrowPts(a, g.arrowSize)], pat: 'SOLID', scale: 1, ang: 0 });
+    for (const a of g.arrows) out.push(...arrowEnts(a, g.arrowSize, e.arr));
     out.push({ type: 'text', p: g.text.p, h: g.text.h, rot: g.text.rot, s: g.text.s });
     return out;
   },
@@ -119,7 +119,7 @@ function leaderGeom(e) {
   const w = textWidth(e.s || '', h);
   const tp = { x: dirx > 0 ? land.x + h * 0.4 : land.x - h * 0.4 - w, y: land.y - h * 0.4 };
   const arrows = n > 1 ? [{ p: pts[0], dir: V.norm(V.sub(pts[0], pts[1])) }] : [];
-  return { lines, arrows, text: { p: tp, h, rot: 0, s: e.s || '' }, arrowSize: h };
+  return { lines, arrows, text: { p: tp, h, rot: 0, s: e.s || '' }, arrowSize: e.asz || h };
 }
 Types.leader = {
   label: 'Leader',
@@ -130,7 +130,7 @@ Types.leader = {
   draw: (R, e) => {
     const g = leaderGeom(e);
     for (const l of g.lines) R.line(l[0], l[1]);
-    for (const a of g.arrows) R.fill(arrowPts(a, g.arrowSize));
+    for (const a of g.arrows) drawArrow(R, a, g.arrowSize, e.arr);
     if (e.s) R.text(g.text.p, g.text.h, 0, e.s);
   },
   props: (e) => [
@@ -141,7 +141,7 @@ Types.leader = {
   explode: (e) => {
     const g = leaderGeom(e);
     const out = g.lines.map(l => ({ type: 'line', p1: l[0], p2: l[1] }));
-    for (const a of g.arrows) out.push({ type: 'hatch', loops: [arrowPts(a, g.arrowSize)], pat: 'SOLID', scale: 1, ang: 0 });
+    for (const a of g.arrows) out.push(...arrowEnts(a, g.arrowSize, e.arr));
     if (e.s) out.push({ type: 'text', p: g.text.p, h: g.text.h, rot: 0, s: e.s });
     return out;
   },

@@ -163,6 +163,11 @@ host (e.g. GitHub Pages).
 - في عرض الـ 3D تقدر تختار المجسمات بالضغط عليها أو بالنافذة، وترسم على مستوى العمل.
 - المجسمات بتتحفظ في ملف الرسمة (JSON)، وفي DXF بتطلع 3DFACE.
 
+## Properties و Dimension Styles و Text Editor
+- **Properties (Ctrl+1)** بنفس تقسيمة أوتوكاد: قائمة نوع الكائن فوق (All / Line / Dimension ...)، أزرار Select / Quick Select، أقسام General / Geometry / Text / Misc / View / Plot style قابلة للطي، وتعديل أكتر من كائن مرة واحدة.
+- **Dimension Style Manager (D)**: Standard / ISO-25 / Architectural، Set Current / New / Modify مع معاينة، وتبويبات Lines / Symbols and Arrows / Text / Fit / Primary Units (أسهم Closed filled / Architectural tick / Dot / Open، حجم السهم، النص فوق أو في النص، Horizontal أو Aligned، المقياس الكلي، الدقة، الفاصلة، Prefix / Suffix، Scale factor، Zero suppression). تعديل النمط بيحدّث كل الأبعاد اللي عليه.
+- **Text Editor**: تبويب بيظهر وقت كتابة MTEXT — ارتفاع النص، UPPERCASE / lowercase، رموز (° ± Ø ≈ ∠ Δ ...)، Field (التاريخ / اسم الملف)، Find & Replace، Close Text Editor.
+
 ## الحفظ
 - من جهازك (index.html): الملفات بتتنزّل عادي.
 - من رابط claude.ai: البرنامج بيستخدم خاصية التنزيل الخاصة بالمنصة؛ JSON و PDF و PNG و SVG بتتحفظ مباشرة، و DXF بيتحفظ جوه ملف ZIP (البرنامج نفسه بيفتح ملف الـ ZIP على طول).

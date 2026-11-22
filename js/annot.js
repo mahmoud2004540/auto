@@ -194,7 +194,7 @@ def('MTEXT', ['MT', 'T'], 'Multiline text with word wrap', async () => {
   const w = Math.abs(q.x - a.x);
   const s = await editTextInPlace(tl, w, hh, '');
   if (!s.trim()) return;
-  addEnt({ type: 'mtext', p: tl, w, h: hh, s, rot: 0 });
+  addEnt({ type: 'mtext', p: tl, w, h: App.mtextH || hh, s, rot: 0 });
 });
 
 def('TABLE', ['TB'], 'Insert a table', async () => {
@@ -237,7 +237,7 @@ def('TEXTEDIT', ['ED', 'DDEDIT', 'MTEDIT'], 'Edit text, MText or table cells', a
   }
 });
 async function editEntityText(e, at) {
-  if (e.type === 'mtext') { e.s = await editTextInPlace(e.p, e.w, e.h, e.s); }
+  if (e.type === 'mtext') { e.s = await editTextInPlace(e.p, e.w, e.h, e.s); if (App.mtextH > 0) e.h = App.mtextH; }
   else if (e.type === 'text') { e.s = (await editTextInPlace(V.add(e.p, { x: 0, y: e.h }), textWidth(e.s, e.h) * 1.3, e.h, e.s, false)).replace(/\n/g, ' '); }
   else if (e.type === 'table') {
     const c = tableCellAt(e, at); if (!c) return;

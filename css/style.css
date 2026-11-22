@@ -328,3 +328,43 @@ svg.ic .fb { fill: #4aa8ff; stroke: none; } svg.ic .fy { fill: #f5c542; stroke: 
 .bedit-item.on, .bedit-item:hover { background: var(--acc); color: #fff; }
 .bedprev { flex: 1; min-width: 0; display: grid; place-items: center; background: #212830; border-radius: 4px; color: #cfe3ff; }
 .bedprev svg { width: 90%; height: 260px; }
+
+/* ---- Properties palette (AutoCAD style) ---- */
+.pphead { display: flex; gap: 3px; align-items: center; margin-bottom: 6px; }
+.pphead select { flex: 1; min-width: 0; }
+.ppbtn { display: grid; place-items: center; width: 26px; height: 24px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg2); }
+.ppbtn:hover { background: var(--bg3); }
+.ppbtn svg.ic { width: 15px; height: 15px; }
+.ppcat { margin-bottom: 2px; }
+.ppcathead { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: #3a4350; color: #fff; font-weight: 600; cursor: pointer; user-select: none; }
+.ppcathead .ar { font-size: 10px; transition: transform .15s; }
+.ppcat.closed .ppcathead .ar { transform: rotate(-90deg); }
+.ppcat.closed .pptable { display: none; }
+.pptable { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.pptable td { padding: 1px 5px; border-bottom: 1px solid #2a313b; height: 22px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pptable td:first-child { width: 46%; color: #c3cbd6; background: #2c333d; border-right: 1px solid #3a4350; }
+.pptable input, .pptable select { width: 100%; background: transparent; border-color: transparent; padding: 1px 2px; }
+.pptable input:focus, .pptable select:focus { background: var(--bg0); border-color: var(--line); }
+.ppcol { display: flex; align-items: center; gap: 4px; }
+.ppcol select { flex: 1; min-width: 0; }
+/* ---- Dimension Style Manager ---- */
+.dsm { display: grid; grid-template-columns: 180px 1fr 120px; gap: 12px; min-height: 300px; }
+.dsmleft, .dsmmid, .dsmright { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dslist { flex: 1; border: 1px solid var(--line); border-radius: 3px; overflow-y: auto; display: flex; flex-direction: column; background: var(--bg0); }
+.dsitem { text-align: left; padding: 4px 8px; }
+.dsitem.on { background: var(--acc); color: #fff; }
+.dsprev { flex: 1; min-height: 230px; background: #ffffff; border: 1px solid var(--line); border-radius: 3px; display: grid; place-items: center; padding: 6px; }
+.dsprev svg { width: 100%; height: 100%; max-height: 260px; }
+.dsprev.small { min-height: 0; }
+.dstabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.dstab { padding: 5px 10px; border-radius: 4px 4px 0 0; color: var(--fg2); }
+.dstab.on { background: var(--bg2); color: #fff; }
+.dstab:disabled { opacity: .45; }
+.dsbody { display: grid; grid-template-columns: 1fr 260px; gap: 12px; }
+.dspane { display: flex; flex-direction: column; gap: 8px; }
+.dspane[hidden] { display: none; }
+.dspane fieldset { border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px 10px; display: flex; flex-direction: column; gap: 6px; }
+.dspane legend { color: var(--acc2); padding: 0 4px; }
+.dspane label { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--fg2); }
+.dspane input:not([type=checkbox]):not([type=radio]), .dspane select { width: 55%; }
+@media (max-width: 700px) { .dsm, .dsbody { grid-template-columns: 1fr; } }
