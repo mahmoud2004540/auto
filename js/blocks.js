@@ -92,6 +92,8 @@ function flattenEnt(e, out, depth = 0) {
     }
   } else if (['dim', 'leader', 'mtext', 'table', 'spline'].includes(e.type)) {
     for (const p of Types[e.type].explode(e)) { p.layer = e.layer; if (e.color) p.color = e.color; out.push(p); }
+  } else if (e.type === 'solid3d') {
+    for (const [a, b] of solidEdges(e)) out.push({ type: 'line', p1: { x: a[0], y: a[1] }, p2: { x: b[0], y: b[1] }, layer: e.layer, color: e.color });
   } else if (e.type === 'attdef') out.push({ type: 'text', p: e.p, h: e.h, rot: e.rot || 0, s: e.tag, layer: e.layer, color: e.color });
   else out.push(e);
 }

@@ -151,6 +151,7 @@ function plotCanvas(c, pxPerMm) {
   const g = cv.getContext('2d');
   g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
   const saved = { view: { ...App.view }, CW, CH };
+  App._flat = true;
   try {
     CW = cv.width; CH = cv.height;
     const R = makeR(g), mono = c.ctb === 'monochrome.ctb';
@@ -176,7 +177,7 @@ function plotCanvas(c, pxPerMm) {
       for (const [a, b] of LG.lines) R.line(a, b);
       for (const t of LG.texts) { g.fillStyle = t.label ? '#555' : '#000'; R.text(t.p, t.h, 0, t.s); }
     }
-  } finally { App.view = saved.view; CW = saved.CW; CH = saved.CH; App.dirty = true; }
+  } finally { App.view = saved.view; CW = saved.CW; CH = saved.CH; App._flat = false; App.dirty = true; }
   return cv;
 }
 UI.plotDialog = function () {

@@ -84,7 +84,7 @@ function exportables(keepInserts) {
   const out = [];
   for (const e of App.doc.ents) {
     if (!visible(e) || (!keepInserts && layerOf(e).plot === false)) continue;
-    if (e.type === 'insert' && keepInserts) out.push(e);
+    if ((e.type === 'insert' || e.type === 'solid3d') && keepInserts) out.push(e);
     else flattenEnt(e, out);
   }
   return out;
@@ -265,6 +265,12 @@ const IO = {
         w(0, 'SEQEND'); w(8, e.layer || '0');
       } else if (e.type === 'point') { head('POINT'); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); }
       else if (e.type === 'xline' || e.type === 'ray') { const [a, b] = [e.type === 'ray' ? e.p : V.sub(e.p, V.mul(e.d, 1e4)), V.add(e.p, V.mul(e.d, 1e4))]; head('LINE'); w(10, num(a.x)); w(20, num(a.y)); w(30, 0); w(11, num(b.x)); w(21, num(b.y)); w(31, 0); }
+      else if (e.type === 'solid3d') {
+        for (const f of e.polys) for (let i = 1; i < f.length - 1; i++) {
+          const t = [f[0], f[i], f[i + 1], f[i + 1]];
+          head('3DFACE'); t.forEach((p, j) => { w(10 + j, num(p[0])); w(20 + j, num(p[1])); w(30 + j, num(p[2])); });
+        }
+      }
       else if (e.type === 'attdef') { head('ATTDEF'); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(40, num(e.h)); w(1, e.def || ''); w(3, e.prompt || e.tag); w(2, e.tag); w(70, (e.invisible ? 1 : 0) | (e.constant ? 2 : 0)); w(50, num(deg(normAng(e.rot || 0)))); }
       else if (e.type === 'insert') {
         const defs = blockAttdefs(e.name);
@@ -639,6 +645,7 @@ const IO = {
     const off = document.createElement('canvas'); off.width = W; off.height = Hc;
     const g = off.getContext('2d');
     const saved = { view: { ...App.view }, CW, CH };
+    App._flat = true;
     CW = W; CH = Hc;
     App.view.cx = (r.x1 + r.x2) / 2; App.view.cy = (r.y1 + r.y2) / 2;
     App.view.s = Math.min(W / Math.max(r.x2 - r.x1, 1e-6), Hc / Math.max(r.y2 - r.y1, 1e-6)) * 0.94;
@@ -652,7 +659,7 @@ const IO = {
       Types[e.type].draw(R, e);
       g.setLineDash([]);
     }
-    App.view = saved.view; CW = saved.CW; CH = saved.CH; App.dirty = true;
+    App.view = saved.view; CW = saved.CW; CH = saved.CH; App._flat = false; App.dirty = true;
     off.toBlob(b => { download(App.fileName + '.png', b); UI.log(`Exported ${App.fileName}.png`); });
   },
 };

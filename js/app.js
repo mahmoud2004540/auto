@@ -91,8 +91,14 @@ const canvas = document.getElementById('cad');
 const ctx = canvas.getContext('2d');
 let CW = 0, CH = 0, DPR = 1;
 
-function w2s(p) { return { x: (p.x - App.view.cx) * App.view.s + CW / 2, y: CH / 2 - (p.y - App.view.cy) * App.view.s }; }
-function s2w(p) { return { x: (p.x - CW / 2) / App.view.s + App.view.cx, y: (CH / 2 - p.y) / App.view.s + App.view.cy }; }
+function w2s(p) {
+  if (App.v3d && !App._flat) { const q = proj3(p, App.doc.elev || 0); return { x: (q.x - App.view.cx) * App.view.s + CW / 2, y: CH / 2 - (q.y - App.view.cy) * App.view.s }; }
+  return { x: (p.x - App.view.cx) * App.view.s + CW / 2, y: CH / 2 - (p.y - App.view.cy) * App.view.s };
+}
+function s2w(p) {
+  if (App.v3d && !App._flat) return groundPoint(p);
+  return { x: (p.x - CW / 2) / App.view.s + App.view.cx, y: (CH / 2 - p.y) / App.view.s + App.view.cy };
+}
 function px(n) { return n / App.view.s; } // screen px -> world units
 
 function resize() {
@@ -106,6 +112,12 @@ function resize() {
 window.addEventListener('resize', resize);
 
 function zoomAt(sp, f) {
+  if (App.v3d) { // zoom in view coordinates
+    const vx = (sp.x - CW / 2) / App.view.s + App.view.cx, vy = (CH / 2 - sp.y) / App.view.s + App.view.cy;
+    App.view.s = Math.max(1e-6, Math.min(1e6, App.view.s * f));
+    App.view.cx = vx - (sp.x - CW / 2) / App.view.s; App.view.cy = vy - (CH / 2 - sp.y) / App.view.s;
+    App.dirty = true; return;
+  }
   const before = s2w(sp);
   App.view.s = Math.max(1e-6, Math.min(1e6, App.view.s * f));
   const after = s2w(sp);
@@ -515,6 +527,7 @@ function updateEffective() {
 }
 
 function pickEnt(p, filter) {
+  if (App.v3d) return pick3D(App.scr, filter);
   const tol = px((App.opts && App.opts.pick) || 6);
   let best = null, bd = Infinity;
   for (let i = App.doc.ents.length - 1; i >= 0; i--) {
@@ -747,6 +760,7 @@ canvas.addEventListener('pointerdown', (ev) => {
     pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), m: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
     App.win = null; downInfo = null; return;
   }
+  if (App.v3d && ev.button === 1 && ev.shiftKey) { ev.preventDefault(); App.orbit = { x: App.scr.x, y: App.scr.y, yaw: V3.yaw, pitch: V3.pitch }; return; }
   if (ev.button === 1 || (ev.button === 0 && spaceDown)) {
     ev.preventDefault();
     App.pan = { sx: App.scr.x, sy: App.scr.y, cx: App.view.cx, cy: App.view.cy };
@@ -757,7 +771,7 @@ canvas.addEventListener('pointerdown', (ev) => {
     submitInput(''); return;
   }
   if (ev.button !== 0) return;
-  if (App.v3d) { App.orbit = { x: App.scr.x, y: App.scr.y, yaw: V3.yaw, pitch: V3.pitch }; return; }
+  if (App.v3d && App.orbitMode) { App.orbit = { x: App.scr.x, y: App.scr.y, yaw: V3.yaw, pitch: V3.pitch }; return; }
   downInfo = { x: App.scr.x, y: App.scr.y, shift: ev.shiftKey, ctrl: ev.ctrlKey || ev.metaKey, touch: ev.pointerType === 'touch' };
   if (ev.pointerType !== 'touch') handlePress(ev.shiftKey, downInfo.ctrl);
 });
@@ -834,6 +848,19 @@ function finishLasso(shift) {
   App.dirty = true; UI.refreshProps();
 }
 function finishWindow(p2, shift) {
+  if (App.v3d) { // screen-space window in the 3D view
+    const w = App.win; App.win = null;
+    const r = rectNorm(w.s1, App.scr), crossing = App.scr.x < w.s1.x;
+    let n = 0;
+    for (const e of App.doc.ents) {
+      if (!editable(e) || INFINITE.has(e.type)) continue;
+      const b = screenBox3(e);
+      const hit = crossing ? !(b.x2 < r.x1 || b.x1 > r.x2 || b.y2 < r.y1 || b.y1 > r.y2) : (b.x1 >= r.x1 && b.x2 <= r.x2 && b.y1 >= r.y1 && b.y2 <= r.y2);
+      if (hit) { shift ? App.sel.delete(e.id) : App.sel.add(e.id); n++; }
+    }
+    if (App.req && App.req.kind === 'select') UI.log(`${n} found, ${App.sel.size} total`);
+    App.dirty = true; UI.refreshProps(); return;
+  }
   const w = App.win; App.win = null;
   const r = rectNorm(w.p1, p2);
   const crossing = p2.x < w.p1.x;
@@ -859,13 +886,14 @@ canvas.addEventListener('pointermove', (ev) => {
   setCursorFromEvent(ev);
   App.over = true;
   if (downInfo) downInfo.max = Math.max(downInfo.max || 0, Math.hypot(App.scr.x - downInfo.x, App.scr.y - downInfo.y));
-  if (App.win && downInfo && !downInfo.touch && (ev.buttons & 1)) { // press-drag = lasso
+  if (App.win && downInfo && !downInfo.touch && !App.v3d && (ev.buttons & 1)) { // press-drag = lasso
     const L = App.win.lasso || (App.win.lasso = [V.clone(App.win.p1)]);
     if (V.dist(L[L.length - 1], App.raw) > px(3)) L.push(V.clone(App.raw));
   }
   if (App.orbit) {
     V3.yaw = App.orbit.yaw + (App.scr.x - App.orbit.x) * 0.008;
-    V3.pitch = Math.max(0, Math.min(Math.PI / 2 - 1e-3, App.orbit.pitch - (App.scr.y - App.orbit.y) * 0.008));
+    V3.pitch = Math.max(0, Math.min(Math.PI - 1e-3, App.orbit.pitch - (App.scr.y - App.orbit.y) * 0.008));
+    V3.viewName = 'Custom View';
     App.dirty = true; return;
   }
   if (App.pan) {

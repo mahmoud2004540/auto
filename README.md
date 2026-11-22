@@ -153,6 +153,16 @@ host (e.g. GitHub Pages).
 - **دبل كليك جوه Viewport = MSPACE (MS)**: ترسم وتعدّل وتكبّر جواه، والمقياس بيتحدّث. دبل كليك برّه أو **PS** = رجوع للورقة.
 - **BEDIT (BE)** أو دبل كليك على بلوك: Block Editor بتبويب خاص — Save Block، Close Block Editor (يسأل Save / Discard)، وكل البلوكات في الرسمة بتتحدّث. التعديل كله يتلغي بـ U.
 
+## مجسمات 3D حقيقية (تبويب Solid)
+- **مجسمات أساسية:** BOX، CYLINDER (CYL)، CONE، SPHERE، PYRAMID (PYR)، WEDGE (WE)، TORUS (TOR). ELEV لتحديد منسوب البداية.
+- **EXTRUDE (EXT):** الأشكال المقفولة بتتحول لمجسمات. **REVOLVE (REV):** لف شكل مقفول حوالين محور.
+- **عمليات بوليانية:** UNION (UNI)، SUBTRACT (SU)، INTERSECT (IN)، SLICE (SL). الحجم بيتحسب في Properties.
+- **تعديل:** MOVE / COPY / ROTATE / SCALE / MIRROR / ARRAY بيشتغلوا على المجسمات، و 3DMOVE (3M) للحركة في Z، و ROTATE3D (3R) حوالين X / Y / Z.
+- **العرض (WebGL):** -VIEW (V): Top / Front / Back / Left / Right / Bottom / SW-SE-NE-NW Isometric. ORBIT (3DO) أو Shift + الزرار الأوسط للدوران. PLAN للرجوع.
+- **Visual Styles (VS):** 2D Wireframe، Wireframe، Hidden، Realistic، Conceptual، Shaded، Shaded with Edges، X-ray.
+- في عرض الـ 3D تقدر تختار المجسمات بالضغط عليها أو بالنافذة، وترسم على مستوى العمل.
+- المجسمات بتتحفظ في ملف الرسمة (JSON)، وفي DXF بتطلع 3DFACE.
+
 ## الحفظ
 - من جهازك (index.html): الملفات بتتنزّل عادي.
 - من رابط claude.ai: البرنامج بيستخدم خاصية التنزيل الخاصة بالمنصة؛ JSON و PDF و PNG و SVG بتتحفظ مباشرة، و DXF بيتحفظ جوه ملف ZIP (البرنامج نفسه بيفتح ملف الـ ZIP على طول).
