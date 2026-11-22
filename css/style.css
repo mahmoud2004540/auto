@@ -216,3 +216,18 @@ svg.ic .fb { fill: #4aa8ff; stroke: none; } svg.ic .fy { fill: #f5c542; stroke: 
 #osnapMenuBtn { width: 14px !important; font-size: 10px; }
 .logo { display: inline-flex; align-items: center; justify-content: center; width: 40px; }
 .layerctl select { width: 150px; }
+
+/* ---- layouts ---- */
+#viewport.paper #compass, #viewport.paper #vplabel { display: none; }
+#layoutbar { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 12px; padding: 5px 8px 5px 14px; background: rgba(29,35,43,.92); border: 1px solid var(--line); border-radius: 6px; white-space: nowrap; }
+#layoutbar[hidden] { display: none; }
+.btn.pri { background: var(--acc); color: #fff; }
+.btn.pri:hover { background: #4f8fff; }
+.dialog.ps { width: min(720px, 96vw); }
+.psgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.psgrid fieldset { border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.psgrid fieldset.wide { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
+.psgrid legend { color: var(--acc2); padding: 0 4px; }
+.psgrid label { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--fg2); }
+.psgrid input, .psgrid select { width: 60%; }
+@media (max-width: 600px) { .psgrid, .psgrid fieldset.wide { grid-template-columns: 1fr; } }

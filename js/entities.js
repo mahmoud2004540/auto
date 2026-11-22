@@ -27,7 +27,7 @@ function textBox(e) {
 }
 
 // Dimension geometry (aligned or linear with given angle)
-function dimGeom(e) {
+function linDimGeom(e) {
   const ang = e.ang;
   const d = { x: Math.cos(ang), y: Math.sin(ang) };
   const n = V.perp(d);

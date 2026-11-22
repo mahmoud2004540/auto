@@ -81,6 +81,12 @@ Object.assign(ICONS, {
   paste: '<rect class="y" x="5" y="4" width="14" height="17" rx="1"/><path d="M9 4V2h6v2M9 10h6M9 14h6"/>',
   hatch: '<rect x="3" y="3" width="18" height="18"/><path class="b" d="M3 9 9 3M3 15 15 3M3 21 21 3M9 21l12-12M15 21l6-6"/>',
   dist: '<path class="y" d="M3 17 17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
+  leader: '<path d="M4 20 12 10h8"/><path class="fb" d="M4 20l1.5-5 3 2.5z"/><path class="b" d="M13 6h8"/>',
+  dimrad: '<circle cx="10" cy="14" r="7"/><path class="b" d="M10 14l8-8M15 6h5v5"/>',
+  dimdia: '<circle cx="12" cy="12" r="8"/><path class="b" d="M6 18 18 6"/>',
+  dimang: '<path d="M4 20h16M4 20 16 6"/><path class="b" d="M12 20a8 8 0 0 0-2.5-6"/>',
+  pdf: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path class="r" d="M8 13h8M8 16h8M8 10h3"/>',
+  pagesetup: '<rect x="4" y="3" width="16" height="18"/><rect class="b" x="7" y="6" width="10" height="8"/><path d="M7 17h10"/>',
   st_grid: '<path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/>',
   st_snap: '<g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="19" cy="5" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="19" r="1.5"/><circle cx="12" cy="19" r="1.5"/><circle cx="19" cy="19" r="1.5"/></g>',
   st_ortho: '<path d="M5 3v16h16"/>',
@@ -113,7 +119,7 @@ const RIBBON = {
       { col: [['TRIM', 'Trim', 'trim', [['Trim', 'TRIM'], ['Extend', 'EXTEND']]], ['FILLET', 'Fillet', 'fillet', [['Fillet', 'FILLET'], ['Chamfer', 'CHAMFER']]], ['ARRAYRECT', 'Array', 'array', [['Rectangular Array', 'ARRAYRECT'], ['Polar Array', 'ARRAYPOLAR']]]] },
       { col: [['ERASE', 'Erase', 'erase'], ['EXPLODE', 'Explode', 'explode'], ['OFFSET', 'Offset', 'offset']] },
       { col: [['BREAK', 'Break', 'break'], ['JOIN', 'Join', 'join'], ['BREAKATPOINT', 'Break at Point', 'breakpt']] }] },
-    { label: 'Annotation', items: [['TEXT', 'Text', 'text'], ['DIMLINEAR', 'Dimension', 'dimlin', [['Linear', 'DIMLINEAR'], ['Aligned', 'DIMALIGNED']]]] },
+    { label: 'Annotation', items: [['TEXT', 'Text', 'text'], ['DIMLINEAR', 'Dimension', 'dimlin', [['Linear', 'DIMLINEAR'], ['Aligned', 'DIMALIGNED'], ['Angular', 'DIMANGULAR'], ['Radius', 'DIMRADIUS'], ['Diameter', 'DIMDIAMETER']]], { col: [['LEADER', 'Leader', 'leader'], ['DIMRADIUS', 'Radius', 'dimrad'], ['DIMANGULAR', 'Angular', 'dimang']] }] },
     { label: 'Layers', items: [['LAYER', 'Layer Properties', 'layers'], { layerctl: true }] },
     { label: 'Block', items: [['INSERT', 'Insert', 'insert'], { col: [['BLOCK', 'Create', 'blockc'], ['EXPLODE', 'Explode', 'explode']] }] },
     { label: 'Properties', items: [['MATCHPROP', 'Match Properties', 'match'], { colorctl: true }] },
@@ -129,7 +135,8 @@ const RIBBON = {
     { label: 'Text', items: [['TEXT', 'Single Line', 'text']] },
     { label: 'Hatch', items: [['HATCH', 'Hatch', 'hatch']] },
     { label: 'Linetypes', items: [['LINETYPE', 'Linetypes', 'list'], ['LTSCALE', 'LT Scale', 'scale'], ['LWDISPLAY', 'Show LWT', 'line']] },
-    { label: 'Dimensions', items: [['DIMLINEAR', 'Linear', 'dimlin'], ['DIMALIGNED', 'Aligned', 'dimali']] },
+    { label: 'Dimensions', items: [['DIMLINEAR', 'Linear', 'dimlin'], ['DIMALIGNED', 'Aligned', 'dimali'], { col: [['DIMANGULAR', 'Angular', 'dimang'], ['DIMRADIUS', 'Radius', 'dimrad'], ['DIMDIAMETER', 'Diameter', 'dimdia']] }] },
+    { label: 'Leaders', items: [['LEADER', 'Leader', 'leader']] },
     { label: 'Inquiry', items: [['DIST', 'Distance', 'dist'], ['AREA', 'Area', 'area']] },
   ],
   View: [
@@ -142,7 +149,8 @@ const RIBBON = {
   ],
   Output: [
     { label: 'File', items: [['NEW', 'New', 'new'], ['OPEN', 'Open', 'open'], ['SAVE', 'Save', 'save']] },
-    { label: 'Export', items: [['DXFOUT', 'DXF', 'export'], ['SVGOUT', 'SVG', 'svg'], ['PNGOUT', 'PNG Plot', 'png']] },
+    { label: 'Plot', items: [['PLOT', 'Plot PDF', 'pdf'], ['PAGESETUP', 'Page Setup', 'pagesetup']] },
+    { label: 'Export', items: [['DXFOUT', 'DXF', 'export'], ['SVGOUT', 'SVG', 'svg'], ['PNGOUT', 'PNG Image', 'png']] },
   ],
 };
 
@@ -181,8 +189,8 @@ const UI = {
       if (ev.target.closest('#osnapMenuBtn')) this.toggleOsnapMenu();
       const lt = ev.target.closest('[data-layout]');
       if (lt) {
-        if (lt.dataset.layout === 'Model') return;
-        this.log('Paper space layouts are not available yet — drawing stays in Model space.', 'err');
+        const n = lt.dataset.layout;
+        if (n === '+') runCommand('LAYOUT'); else switchSpace(n);
       }
       const sg = ev.target.closest('#suggest div');
       if (sg) { $('cmdinput').value = ''; this.hideSuggest(); runCommand(sg.dataset.name); }
@@ -307,7 +315,8 @@ const UI = {
       { label: 'New', cmd: 'NEW', icon: 'new', hint: 'Ctrl+N' }, { label: 'Open...', cmd: 'OPEN', icon: 'open', hint: 'Ctrl+O' },
       { label: 'Save', cmd: 'SAVE', icon: 'save', hint: 'Ctrl+S' }, { label: 'Save As...', cmd: 'SAVE', icon: 'save' }, '-',
       { label: 'Export DXF', cmd: 'DXFOUT', icon: 'export' }, { label: 'Export SVG', cmd: 'SVGOUT', icon: 'svg' },
-      { label: 'Plot to PNG', cmd: 'PNGOUT', icon: 'png', hint: 'Ctrl+P' }, '-',
+      { label: 'Plot (PDF)...', cmd: 'PLOT', icon: 'pdf', hint: 'Ctrl+P' }, { label: 'Page Setup...', cmd: 'PAGESETUP', icon: 'pagesetup' },
+      { label: 'Export PNG image', cmd: 'PNGOUT', icon: 'png' }, '-',
       { label: 'Drawing Utilities: Select All', cmd: 'SELECTALL', icon: 'selall' }, { label: 'Commands & Help', cmd: 'HELP', icon: 'help', hint: 'F1' },
     ]);
   },
@@ -317,6 +326,89 @@ const UI = {
     this.popup(anchor, items);
   },
   recent: [],
+
+  refreshLayoutTabs() {
+    const box = $('ltabs'); if (!box) return;
+    const names = ['Model', ...layouts().map(l => l.name)];
+    box.innerHTML = names.map(n => `<button class="lt${n === App.space ? ' active' : ''}" data-layout="${esc(n)}">${esc(n)}</button>`).join('') + '<button class="lt" data-layout="+" title="New layout">+</button>';
+    box.querySelectorAll('[data-layout]').forEach(b => {
+      if (b.dataset.layout === 'Model' || b.dataset.layout === '+') return;
+      b.oncontextmenu = (ev) => {
+        ev.preventDefault();
+        const n = b.dataset.layout;
+        switchSpace(n);
+        this.popup(b, [
+          { label: 'Page Setup Manager...', fn: () => this.pageSetup(), icon: 'pagesetup' },
+          { label: 'Plot (PDF)...', cmd: 'PLOT', icon: 'pdf' }, '-',
+          { label: 'New layout', cmd: 'LAYOUT' },
+          { label: 'Delete layout', fn: () => this.deleteLayout(n), icon: 'erase' },
+        ]);
+      };
+    });
+    const paper = App.space !== 'Model';
+    $('spaceLabel').textContent = paper ? 'PAPER' : 'MODEL';
+    $('viewport').classList.toggle('paper', paper);
+    const bar = $('layoutbar');
+    bar.hidden = !paper;
+    if (paper) {
+      const L = curLayout(), G = layoutGeom(L);
+      bar.innerHTML = `<span><b>${esc(L.name)}</b></span><span>${esc(L.paper)} ${L.orient === 'P' ? 'Portrait' : 'Landscape'}</span><span>Scale <b>${esc(G.scaleLabel)}</b></span><button class="btn" data-cmd="PAGESETUP">Page Setup</button><button class="btn pri" data-cmd="PLOT">Plot PDF</button>`;
+    }
+  },
+  deleteLayout(n) {
+    if (layouts().length <= 1) { this.log('A drawing needs at least one layout.', 'err'); return; }
+    switchSpace('Model');
+    this.change(() => { App.doc.layouts = layouts().filter(l => l.name !== n); });
+    this.refreshLayoutTabs();
+  },
+  pageSetup() {
+    let L = curLayout();
+    if (!L) { L = layouts()[0]; switchSpace(L.name); }
+    const G = layoutGeom(L);
+    const opt = (arr, v) => arr.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('');
+    const t = L.title || {};
+    $('psBody').innerHTML = `
+      <div class="psgrid">
+        <fieldset><legend>Layout</legend>
+          <label>Name <input id="ps_name" value="${esc(L.name)}"></label>
+          <label>Paper size <select id="ps_paper">${opt(Object.keys(PAPERS), L.paper)}</select></label>
+          <label>Orientation <select id="ps_orient"><option value="L" ${L.orient !== 'P' ? 'selected' : ''}>Landscape</option><option value="P" ${L.orient === 'P' ? 'selected' : ''}>Portrait</option></select></label>
+        </fieldset>
+        <fieldset><legend>Plot scale</legend>
+          <label>Scale <select id="ps_scale">${opt(PLOT_SCALES, L.scale)}</select></label>
+          <label>Drawing units <select id="ps_units">${Object.keys(UNITS_MM).map(u => `<option value="${u}" ${u === L.units ? 'selected' : ''}>1 unit = 1 ${u}</option>`).join('')}</select></label>
+          <label>View center <select id="ps_ctr"><option value="ext" ${!L.center ? 'selected' : ''}>Drawing extents</option><option value="xy" ${L.center ? 'selected' : ''}>Point X,Y</option></select></label>
+          <label>X,Y <input id="ps_xy" value="${fmt(G.center.x)},${fmt(G.center.y)}"></label>
+          <div class="muted" id="ps_info">Current: ${esc(G.scaleLabel)}</div>
+        </fieldset>
+        <fieldset class="wide"><legend>Title block</legend>
+          <label>Drawing title <input id="ps_title" value="${esc(t.title || '')}"></label>
+          <label>Project <input id="ps_project" value="${esc(t.project || '')}"></label>
+          <label>Drawn by <input id="ps_drawn" value="${esc(t.drawnBy || '')}"></label>
+          <label>Date <input id="ps_date" value="${esc(t.date || '')}"></label>
+          <label>Sheet <input id="ps_sheet" value="${esc(t.sheet || '')}"></label>
+        </fieldset>
+      </div>
+      <div class="btnrow" style="justify-content:flex-end"><button class="btn" id="ps_apply">Apply</button><button class="btn pri" id="ps_plot">Apply &amp; Plot PDF</button></div>`;
+    const apply = () => {
+      const nn = $('ps_name').value.trim() || L.name;
+      if (nn !== L.name && (nn === 'Model' || layouts().some(l => l.name === nn))) { this.log(`Layout name "${nn}" is not available.`, 'err'); return false; }
+      this.change(() => {
+        const old = L.name;
+        L.name = nn; L.paper = $('ps_paper').value; L.orient = $('ps_orient').value; L.scale = $('ps_scale').value; L.units = $('ps_units').value;
+        if ($('ps_ctr').value === 'ext') L.center = null;
+        else { const c = parseCoord($('ps_xy').value, null); if (c) L.center = c; }
+        L.title = { title: $('ps_title').value, project: $('ps_project').value, drawnBy: $('ps_drawn').value, date: $('ps_date').value, sheet: $('ps_sheet').value };
+        if (App.space === old) { App.space = nn; if (App.views && App.views[old]) { App.views[nn] = App.views[old]; delete App.views[old]; } }
+      });
+      zoomPaper(); this.refreshLayoutTabs();
+      return true;
+    };
+    $('ps_apply').onclick = () => { if (apply()) $('psModal').hidden = true; };
+    $('ps_plot').onclick = () => { if (apply()) { $('psModal').hidden = true; plotLayoutPDF(curLayout()); } };
+    $('psClose').onclick = () => { $('psModal').hidden = true; };
+    $('psModal').hidden = false;
+  },
 
   // perform an undoable change from the UI
   change(fn) {
@@ -328,7 +420,7 @@ const UI = {
     this.refreshProps(); this.refreshLayers();
   },
 
-  refreshAll() { this.refreshLayers(); this.refreshProps(); this.refreshStatus(); this.refreshTitle(); this.setPrompt('', null); },
+  refreshAll() { this.refreshLayoutTabs(); this.refreshLayers(); this.refreshProps(); this.refreshStatus(); this.refreshTitle(); this.setPrompt('', null); },
   refreshTitle() { $('ftabName').textContent = App.fileName + (App.modified ? '*' : ''); $('doctitle').textContent = `${App.fileName}${App.modified ? ' *' : ''}  —  OpenDraft CAD`; document.title = `${App.fileName}${App.modified ? '*' : ''} - OpenDraft CAD`; },
 
   refreshStatus() {
@@ -463,6 +555,7 @@ const UI = {
       if (fk[ev.key]) { ev.preventDefault(); fk[ev.key](); return; }
       if (ev.key === 'Escape') {
         if (!$('helpModal').hidden) { $('helpModal').hidden = true; return; }
+        if (!$('psModal').hidden) { $('psModal').hidden = true; return; }
         if (inField) { t.blur(); return; }
         this.hideSuggest(); this.toggleOsnapMenu(false);
         if (inp.value) { inp.value = ''; this.updateDyn(); return; }
@@ -474,7 +567,7 @@ const UI = {
       const mod = ev.ctrlKey || ev.metaKey;
       if (mod) {
         const k = ev.key.toLowerCase();
-        const map = { z: 'UNDO', y: 'REDO', s: 'SAVE', o: 'OPEN', a: 'SELECTALL', n: 'NEW', p: 'PNGOUT', c: 'COPYCLIP', v: 'PASTECLIP', x: 'CUTCLIP' };
+        const map = { z: 'UNDO', y: 'REDO', s: 'SAVE', o: 'OPEN', a: 'SELECTALL', n: 'NEW', p: 'PLOT', c: 'COPYCLIP', v: 'PASTECLIP', x: 'CUTCLIP' };
         if (k === 'z' && ev.shiftKey) { ev.preventDefault(); runCommand('REDO'); return; }
         if (map[k] && !(isCmd && 'acvx'.includes(k) && inp.value)) { ev.preventDefault(); runCommand(map[k]); }
         return;

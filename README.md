@@ -47,6 +47,12 @@ host (e.g. GitHub Pages).
 | TEXT | T, DT | نص |
 | DIMLINEAR | DLI | بُعد أفقي/رأسي |
 | DIMALIGNED | DAL | بُعد مائل |
+| DIMRADIUS / DIMDIAMETER | DRA / DDI | بُعد نصف القطر / القطر |
+| DIMANGULAR | DAN | بُعد الزاوية (بين خطين، لقوس، أو بثلاث نقاط) |
+| LEADER | LE, MLD | سهم مع ملاحظة |
+| PAGESETUP | PS | إعداد الورقة: المقاس A4–A0، الاتجاه، مقياس الرسم، الوحدات، بيانات لوحة العنوان |
+| PLOT | Ctrl+P | طباعة الـ Layout إلى ملف PDF بمقياس رسم حقيقي |
+| LAYOUT / MODEL | LO / MS | إنشاء Layout جديد / الرجوع لـ Model |
 | MOVE | M | تحريك |
 | COPY | CO, CP | نسخ (مع خيار Array) |
 | ROTATE | RO | تدوير (Copy / Reference) |

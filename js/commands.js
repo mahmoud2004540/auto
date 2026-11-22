@@ -918,3 +918,66 @@ def('LAYULK', [], 'Unlock a layer by picking an object on it', async () => {
   if (!e) { UI.log('No object found.'); return; }
   layerOf(e).locked = false; App.dirty = true; UI.log(`Layer "${e.layer}" has been unlocked.`);
 });
+
+// ---------------- MORE DIMENSIONS / LEADER ----------------
+function dimLayer() { return App.doc.layers.find(l => l.name === 'Dimensions') ? 'Dimensions' : App.doc.cur; }
+async function dimRadial(kind) {
+  const pick = await getEntity(`Select arc or circle`, { filter: e => e.type === 'circle' || e.type === 'arc' });
+  if (!pick || typeof pick !== 'object') return;
+  const { c, r } = pick.e;
+  const mk = (q) => ({ type: 'dim', kind, c: V.clone(c), r, p3: q, h: App.doc.dimH, layer: dimLayer() });
+  const q = await getPoint('Specify dimension line location', { rubber: false, noSnap: true, preview: (q) => [mk(q)] });
+  if (!isPt(q)) return;
+  const d = addEnt(mk(q));
+  UI.log(`Dimension text = ${dimGeom(d).text.s}`);
+}
+def('DIMRADIUS', ['DRA', 'DIMRAD'], 'Radius dimension', () => dimRadial('rad'));
+def('DIMDIAMETER', ['DDI', 'DIMDIA'], 'Diameter dimension', () => dimRadial('dia'));
+
+def('DIMANGULAR', ['DAN', 'DIMANG'], 'Angular dimension', async () => {
+  const pick = await getEntity('Select arc, circle, line, or <specify vertex>', { filter: e => ['line', 'arc', 'circle'].includes(e.type) });
+  let c, p1, p2;
+  if (pick === null) {
+    c = await getPoint('Specify angle vertex'); if (!isPt(c)) return;
+    p1 = await getPoint('Specify first angle endpoint', { base: c }); if (!isPt(p1)) return;
+    p2 = await getPoint('Specify second angle endpoint', { base: c }); if (!isPt(p2)) return;
+  } else if (typeof pick === 'object') {
+    const e = pick.e;
+    if (e.type === 'arc') { c = e.c; p1 = V.polar(e.c, e.a1, e.r); p2 = V.polar(e.c, e.a2, e.r); }
+    else if (e.type === 'circle') {
+      c = e.c; p1 = entNearest(e, pick.p);
+      const q = await getPoint('Specify second angle endpoint', { base: c }); if (!isPt(q)) return; p2 = q;
+    } else {
+      App.sel.add(e.id); App.usedSel = true; App.dirty = true;
+      const pick2 = await getEntity('Select second line', { filter: x => x.type === 'line' && x !== e });
+      if (!pick2 || typeof pick2 !== 'object') return;
+      const x = segSeg(e.p1, e.p2, pick2.e.p1, pick2.e.p2, true);
+      if (!x) { UI.log('Lines are parallel.', 'err'); return; }
+      c = x.p;
+      const far = (ln, pk) => (V.dot(V.sub(ln.p1, c), V.sub(pk, c)) >= V.dot(V.sub(ln.p2, c), V.sub(pk, c)) ? ln.p1 : ln.p2);
+      p1 = far(e, pick.p); p2 = far(pick2.e, pick2.p);
+      if (V.dist(p1, c) < 1e-9) p1 = V.polar(c, V.ang(c, pick.p), 1);
+      if (V.dist(p2, c) < 1e-9) p2 = V.polar(c, V.ang(c, pick2.p), 1);
+    }
+  } else return;
+  const mk = (q) => ({ type: 'dim', kind: 'ang', c: V.clone(c), p1: V.clone(p1), p2: V.clone(p2), p3: q, h: App.doc.dimH, layer: dimLayer() });
+  const q = await getPoint('Specify dimension arc line location', { rubber: false, noSnap: true, preview: (q) => [mk(q)] });
+  if (!isPt(q)) return;
+  const d = addEnt(mk(q));
+  UI.log(`Dimension text = ${dimGeom(d).text.s}`);
+});
+
+def('LEADER', ['LE', 'QLEADER', 'MLEADER', 'MLD', 'LEAD'], 'Leader with note', async () => {
+  const p0 = await getPoint('Specify leader arrowhead location'); if (!isPt(p0)) return;
+  const pts = [p0];
+  for (;;) {
+    const p = await getPoint(pts.length < 2 ? 'Specify leader landing location' : 'Specify next point or <enter text>', {
+      base: pts[pts.length - 1], preview: (q) => [{ type: 'leader', pts: [...pts, q], s: '', h: App.doc.dimH, layer: dimLayer() }] });
+    if (!isPt(p)) break;
+    pts.push(p);
+    if (pts.length >= 3) break;
+  }
+  if (pts.length < 2) return;
+  const s = await getString('Enter the text');
+  addEnt({ type: 'leader', pts, s: s || '', h: App.doc.dimH, layer: dimLayer() });
+});

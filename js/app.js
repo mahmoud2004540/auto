@@ -23,6 +23,7 @@ const App = {
   win: null, hotGrip: null,
   pan: null, dirty: true,
   fileName: 'Drawing1',
+  space: 'Model',
   modified: false,
 };
 
@@ -117,6 +118,7 @@ function zoomRect(r, margin = 0.08) {
   App.dirty = true;
 }
 function zoomExtents() {
+  if (App.space !== 'Model') { zoomPaper(); return; }
   const ents = App.doc.ents.filter(visible);
   if (!ents.length) { App.view = { cx: 100, cy: 70, s: Math.min(CW / 300, CH / 200) || 4 }; App.dirty = true; return; }
   let r = { x1: Infinity, y1: Infinity, x2: -Infinity, y2: -Infinity };
@@ -260,14 +262,16 @@ function render() {
   App.dirty = false;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#212830'; ctx.fillRect(0, 0, CW, CH);
-  if (App.modes.grid) drawGrid();
+  const paper = App.space !== 'Model';
+  if (paper) renderLayout();
+  else if (App.modes.grid) drawGrid();
   const R = makeR();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
   const inSelectMode = !App.req || App.req.kind === 'select' || App.req.kind === 'entity';
   const lwPx = App.modes.lwt ? lwScreenPx : null;
   const ordered = App.doc.ents.filter(e => e.type === 'hatch').concat(App.doc.ents.filter(e => e.type !== 'hatch'));
-  for (const e of ordered) {
+  for (const e of (paper ? [] : ordered)) {
     if (!visible(e)) continue;
     const c = entColor(e);
     const selected = App.sel.has(e.id);
@@ -312,7 +316,7 @@ function render() {
   }
 
   // grips
-  if (!App.req) {
+  if (!App.req && !paper) {
     const ents = selEnts();
     if (ents.length <= 200) for (const e of ents) for (const g of Types[e.type].grips(e)) {
       const p = w2s(g.p);
@@ -431,7 +435,7 @@ function updateEffective() {
       }
     }
   }
-  if (App.modes.osnap && !r.noSnap) {
+  if (App.modes.osnap && !r.noSnap && App.space === 'Model') {
     const sn = findOsnap(raw, base);
     if (sn) { App.snap = sn; p = sn.p; App.track = null; }
   }
@@ -598,6 +602,7 @@ async function runCommand(input, queue) {
   const fn = typeof input === 'function' ? input : (name && Commands[name] ? Commands[name].fn : null);
   if (!fn) { UI.log(`Unknown command "${String(input).toUpperCase()}". Press F1 or type HELP.`, 'err'); return; }
   if (App.cmd) { cancelReq(); await new Promise(r => setTimeout(r, 0)); }
+  if (name && App.space !== 'Model' && !PAPER_OK.has(name)) { UI.log(`${name} works in Model space. Click the Model tab to draw and edit.`, 'err'); return; }
   const transparent = name && Commands[name].noUndo;
   App.queue = queue || [];
   App.cmd = name || 'GRIP';
@@ -670,6 +675,7 @@ function handlePress(shift) {
     return;
   }
   if (r && r.kind === 'kw') return;
+  if (!r && App.space !== 'Model') return;
   if (App.cmd && !r) return;
   // selection (idle or select request)
   if (!r && App.sel.size) {
@@ -725,7 +731,7 @@ function onCursorMove() {
   updateEffective();
   updatePreview();
   const r = App.req;
-  if (!r || r.kind === 'select' || r.kind === 'entity') {
+  if (App.space === 'Model' && (!r || r.kind === 'select' || r.kind === 'entity')) {
     const h = App.win ? null : pickEnt(App.raw, r && r.filter);
     App.hover = h ? h.id : null;
   } else App.hover = null;
