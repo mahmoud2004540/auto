@@ -342,8 +342,25 @@ function offsetEnt(e, d, side) {
 }
 def('OFFSET', ['O'], 'Offset lines, circles, arcs, polylines', async () => {
   const d0 = App.lastOffset || 10;
-  const d = await getDist(`Specify offset distance <${fmt(d0)}>`, { def: d0 });
+  let d = await getDist(`Specify offset distance or [Through] <${App.offThrough ? 'Through' : fmt(d0)}>`, { def: App.offThrough ? 'Through' : d0, keywords: ['Through'] });
+  if (d === 'Through') {
+    App.offThrough = true;
+    for (;;) {
+      App.sel.clear();
+      const pick = await getEntity('Select object to offset or <exit>', { filter: e => ['line', 'circle', 'arc', 'pline'].includes(e.type) });
+      if (!pick || typeof pick !== 'object') return;
+      App.sel.add(pick.e.id); App.dirty = true;
+      const thr = await getPoint('Specify through point');
+      App.sel.clear();
+      if (!isPt(thr)) return;
+      const e = pick.e;
+      const dist = e.type === 'circle' || e.type === 'arc' ? Math.abs(V.dist(thr, e.c) - e.r) : V.dist(thr, entNearest(e, thr));
+      const o = offsetEnt(e, dist, thr);
+      if (o) { inheritStyle(e, o); delete o.id; addEnt(o); }
+    }
+  }
   if (typeof d !== 'number' || d <= 0) return;
+  App.offThrough = false;
   App.lastOffset = d;
   for (;;) {
     App.sel.clear();

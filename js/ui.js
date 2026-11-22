@@ -99,6 +99,7 @@ Object.assign(ICONS, {
   gcpar: '<path d="M4 18 14 4M10 20 20 6"/>',
   gcperp: '<path d="M4 20h16M12 20V4"/><path class="b" d="M12 16h4v4"/>',
   gceq: '<path class="b" d="M5 9h14M5 15h14"/>',
+  st_otrack: '<rect x="3" y="14" width="6" height="6"/><path d="M9 17h12M6 14V3" stroke-dasharray="2 2"/>',
   st_grid: '<path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/>',
   st_snap: '<g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="19" cy="5" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="19" r="1.5"/><circle cx="12" cy="19" r="1.5"/><circle cx="19" cy="19" r="1.5"/></g>',
   st_ortho: '<path d="M5 3v16h16"/>',
@@ -124,19 +125,20 @@ const RIBBON = {
     { label: 'Draw', items: [['LINE', 'Line', 'line'], ['PLINE', 'Polyline', 'pline'],
       ['CIRCLE', 'Circle', 'circle', [['Center, Radius', 'CIRCLE'], ['2-Point', 'CIRCLE', ['2P']], ['3-Point', 'CIRCLE', ['3P']]]],
       ['ARC', 'Arc', 'arc', [['3-Point', 'ARC'], ['Center, Start, End', 'ARC', ['Center']]]],
-      { col: [['RECTANG', 'Rectangle', 'rect', [['Rectangle', 'RECTANG'], ['Polygon', 'POLYGON']]], ['ELLIPSE', 'Ellipse', 'ellipse'], ['HATCH', 'Hatch', 'hatch']] },
-      { col: [['SPLINE', 'Spline', 'spline'], ['POLYGON', 'Polygon', 'polygon'], ['EXTRUDE', 'Extrude', 'extrude']] }] },
+      { col: [['RECTANG', 'Rectangle', 'rect', [['Rectangle', 'RECTANG'], ['Polygon', 'POLYGON']]], ['ELLIPSE', 'Ellipse', 'ellipse'], ['HATCH', 'Hatch', 'hatch']] }],
+      more: [['SPLINE', 'Spline', 'spline'], ['POLYGON', 'Polygon', 'polygon'], ['XLINE', 'Construction Line', 'line'], ['RAY', 'Ray', 'line'], ['POINT', 'Multiple Points', 'id'], ['DIVIDE', 'Divide', 'id'], ['MEASURE', 'Measure', 'id'], ['DONUT', 'Donut', 'circle'], ['REVCLOUD', 'Revision Cloud', 'rect'], ['BOUNDARY', 'Boundary', 'rect'], ['EXTRUDE', 'Extrude (3D)', 'extrude']] },
     { label: 'Modify', items: [
       { col: [['MOVE', 'Move', 'move'], ['COPY', 'Copy', 'copy'], ['STRETCH', 'Stretch', 'stretch']] },
       { col: [['ROTATE', 'Rotate', 'rotate'], ['MIRROR', 'Mirror', 'mirror'], ['SCALE', 'Scale', 'scale']] },
       { col: [['TRIM', 'Trim', 'trim', [['Trim', 'TRIM'], ['Extend', 'EXTEND']]], ['FILLET', 'Fillet', 'fillet', [['Fillet', 'FILLET'], ['Chamfer', 'CHAMFER']]], ['ARRAYRECT', 'Array', 'array', [['Rectangular Array', 'ARRAYRECT'], ['Polar Array', 'ARRAYPOLAR']]]] },
-      { col: [['ERASE', 'Erase', 'erase'], ['EXPLODE', 'Explode', 'explode'], ['OFFSET', 'Offset', 'offset']] },
-      { col: [['BREAK', 'Break', 'break'], ['JOIN', 'Join', 'join'], ['BREAKATPOINT', 'Break at Point', 'breakpt']] }] },
-    { label: 'Annotation', items: [['MTEXT', 'Text', 'text', [['Multiline Text', 'MTEXT'], ['Single Line', 'TEXT']]], ['DIMLINEAR', 'Dimension', 'dimlin', [['Linear', 'DIMLINEAR'], ['Aligned', 'DIMALIGNED'], ['Angular', 'DIMANGULAR'], ['Radius', 'DIMRADIUS'], ['Diameter', 'DIMDIAMETER']]], { col: [['LEADER', 'Leader', 'leader'], ['TABLE', 'Table', 'table'], ['DIMANGULAR', 'Angular', 'dimang']] }] },
+      { col: [['ERASE', 'Erase', 'erase'], ['EXPLODE', 'Explode', 'explode'], ['OFFSET', 'Offset', 'offset']] }],
+      more: [['BREAK', 'Break', 'break'], ['BREAKATPOINT', 'Break at Point', 'breakpt'], ['JOIN', 'Join', 'join'], ['CHAMFER', 'Chamfer', 'fillet'], ['EXTEND', 'Extend', 'extend'], ['LENGTHEN', 'Lengthen', 'scale'], ['ALIGN', 'Align', 'move'], ['PEDIT', 'Edit Polyline', 'pline'], ['ARRAYPOLAR', 'Polar Array', 'arrayp'], ['MATCHPROP', 'Match Properties', 'match'], ['OVERKILL', 'Delete Duplicates', 'join']] },
+    { label: 'Annotation', items: [['MTEXT', 'Text', 'text', [['Multiline Text', 'MTEXT'], ['Single Line', 'TEXT']]], ['DIMLINEAR', 'Dimension', 'dimlin', [['Linear', 'DIMLINEAR'], ['Aligned', 'DIMALIGNED'], ['Angular', 'DIMANGULAR'], ['Radius', 'DIMRADIUS'], ['Diameter', 'DIMDIAMETER'], ['Continue', 'DIMCONTINUE'], ['Baseline', 'DIMBASELINE'], ['Dimension Style...', 'DIMSTYLE']]], { col: [['LEADER', 'Leader', 'leader'], ['TABLE', 'Table', 'table'], ['DIMANGULAR', 'Angular', 'dimang']] }] },
     { label: 'Layers', items: [['LAYER', 'Layer Properties', 'layers'], { layerctl: true }] },
     { label: 'Block', items: [['INSERT', 'Insert', 'insert'], { col: [['BLOCK', 'Create', 'blockc'], ['EXPLODE', 'Explode', 'explode']] }] },
     { label: 'Properties', items: [['MATCHPROP', 'Match Properties', 'match'], { colorctl: true }] },
-    { label: 'Utilities', items: [['DIST', 'Measure', 'dist', [['Distance', 'DIST'], ['Area', 'AREA'], ['ID Point', 'ID'], ['List', 'LIST']]]] },
+    { label: 'Groups', items: [['GROUP', 'Group', 'blockc']], more: [['UNGROUP', 'Ungroup', 'explode'], ['SELECTSIMILAR', 'Select Similar', 'selall'], ['QSELECT', 'Quick Select', 'list']] },
+    { label: 'Utilities', items: [['DIST', 'Measure', 'dist', [['Distance', 'DIST'], ['Area', 'AREA'], ['ID Point', 'ID'], ['List', 'LIST'], ['Divide', 'DIVIDE'], ['Measure (points)', 'MEASURE']]], ], more: [['POINT', 'Point', 'id'], ['DDPTYPE', 'Point Style', 'id'], ['QSELECT', 'Quick Select', 'list'], ['UNITS', 'Units', 'dist'], ['PURGE', 'Purge', 'erase']] },
     { label: 'Clipboard', items: [['PASTECLIP', 'Paste', 'paste'], { col: [['COPYCLIP', 'Copy Clip', 'copy'], ['CUTCLIP', 'Cut', 'erase']] }] },
     { label: 'View', items: [['ZOOM_EXT', 'Extents', 'zoomext']] },
   ],
@@ -165,6 +167,8 @@ const RIBBON = {
   ],
   Manage: [
     { label: 'Actions', items: [['UNDO', 'Undo', 'undo'], ['REDO', 'Redo', 'redo'], ['SELECTALL', 'Select All', 'selall']] },
+    { label: 'Cleanup', items: [['PURGE', 'Purge', 'erase'], ['OVERKILL', 'Overkill', 'join']] },
+    { label: 'Drawing', items: [['UNITS', 'Units', 'dist'], ['DIMSTYLE', 'Dim Style', 'dimlin'], ['DDPTYPE', 'Point Style', 'id']] },
     { label: 'Help', items: [['HELP', 'Commands', 'help']] },
   ],
   Output: [
@@ -191,6 +195,8 @@ const UI = {
     document.querySelectorAll('[data-icon]').forEach(b => { b.innerHTML = icon(b.dataset.icon); });
     this.buildRibbon();
     document.addEventListener('click', (ev) => {
+      const gm = ev.target.closest('.glabel.hasmore');
+      if (gm) { ev.stopPropagation(); this.popup(gm, JSON.parse(gm.dataset.more).map(([cmd, label, ic]) => ({ label, cmd, icon: ic, hint: (Commands[cmd] && Commands[cmd].alias[0]) || '' }))); return; }
       const dd = ev.target.closest('.dd');
       if (dd) { ev.stopPropagation(); const m = JSON.parse(dd.dataset.menu); this.popup(dd, m.map(([label, cmd, kws]) => ({ label, cmd, kws, icon: null }))); return; }
       if (ev.target.closest('.logo')) { ev.stopPropagation(); this.appMenu(ev.target.closest('.logo')); return; }
@@ -266,7 +272,7 @@ const UI = {
       if (it.colorctl) return `<div class="layerctl"><select id="ribbonColor" title="Color for new objects">${COLORS.map(([n, c]) => `<option value="${c}">${n}</option>`).join('')}</select><select id="ribbonLt" title="Linetype for new objects">${ltOptions(App.doc.curLt, true)}</select><select id="ribbonLw" title="Lineweight for new objects">${lwOptions(App.doc.curLw, true)}</select></div>`;
       if (it.layerctl) return `<div class="layerctl"><button class="ldrop" id="layerDrop" title="Layer control"></button><div class="licons">${[['LAYMCUR', 'laymcur', 'Make object\'s layer current'], ['LAYOFF', 'layoff', 'Turn object\'s layer off'], ['LAYISO', 'layiso', 'Isolate object\'s layer'], ['LAYON', 'layon', 'Turn all layers on'], ['LAYLCK', 'lockOn', 'Lock object\'s layer'], ['LAYULK', 'lockOff', 'Unlock object\'s layer']].map(([c, i, t]) => `<button class="rbtn small" data-cmd="${c}" title="${t} (${c})">${icon(i)}</button>`).join('')}</div></div>`;
       return '';
-    }).join('')}</div><div class="glabel">${g.label}</div></div>`).join('');
+    }).join('')}</div><div class="glabel${g.more ? ' hasmore' : ''}" ${g.more ? `data-more="${esc(JSON.stringify(g.more))}" title="More ${esc(g.label)} tools"` : ''}>${g.label}</div></div>`).join('');
     const ld = $('layerDrop');
     if (ld) ld.onclick = (ev) => { ev.stopPropagation(); this.layerPopup(ld); };
     const applyProp = (key, val) => { const s = selEnts(); this.change(() => { if (s.length) s.forEach(e => { if (val === undefined) delete e[key]; else e[key] = val; }); else App.doc['cur' + key[0].toUpperCase() + key.slice(1)] = val; }); };
@@ -346,6 +352,32 @@ const UI = {
     this.popup(anchor, items);
   },
   recent: [],
+  contextMenu(x, y) {
+    const anchor = { getBoundingClientRect: () => ({ left: x, right: x, top: y, bottom: y }) };
+    const sel = App.sel.size > 0;
+    const last = App.lastCmd;
+    const items = [];
+    if (last) items.push({ label: `Repeat ${last}`, cmd: last });
+    if (this.recent.length) items.push({ label: 'Recent Input...', fn: () => this.recentMenu(anchor) });
+    items.push('-');
+    if (sel) {
+      items.push({ label: 'Cut', cmd: 'CUTCLIP', icon: 'cut', hint: 'Ctrl+X' }, { label: 'Copy', cmd: 'COPYCLIP', icon: 'copy', hint: 'Ctrl+C' });
+      if (App.clip) items.push({ label: 'Paste', cmd: 'PASTECLIP', icon: 'paste', hint: 'Ctrl+V' });
+      items.push('-', { label: 'Erase', cmd: 'ERASE', icon: 'erase', hint: 'Del' }, { label: 'Move', cmd: 'MOVE', icon: 'move' }, { label: 'Copy Selection', cmd: 'COPY', icon: 'copy' },
+        { label: 'Scale', cmd: 'SCALE', icon: 'scale' }, { label: 'Rotate', cmd: 'ROTATE', icon: 'rotate' }, '-',
+        { label: 'Deselect All', fn: () => { App.sel.clear(); App.dirty = true; this.refreshProps(); } },
+        { label: 'Select Similar', cmd: 'SELECTSIMILAR', icon: 'selall' }, { label: 'Group', cmd: 'GROUP', icon: 'blockc' }, '-',
+        { label: 'Properties', fn: () => this.openPanel('props'), icon: 'props', hint: 'Ctrl+1' });
+    } else {
+      if (App.clip) items.push({ label: 'Paste', cmd: 'PASTECLIP', icon: 'paste', hint: 'Ctrl+V' }, '-');
+      items.push({ label: 'Undo', cmd: 'UNDO', icon: 'undo', hint: 'Ctrl+Z' }, { label: 'Redo', cmd: 'REDO', icon: 'redo', hint: 'Ctrl+Y' }, '-',
+        { label: 'Pan', cmd: 'PAN', icon: 'pan' }, { label: 'Zoom', cmd: 'ZOOM', icon: 'zoomwin' }, { label: 'Zoom Extents', cmd: 'ZOOM_EXT', icon: 'zoomext' }, '-',
+        { label: 'Quick Select...', cmd: 'QSELECT', icon: 'list' }, { label: 'Select All', cmd: 'SELECTALL', icon: 'selall', hint: 'Ctrl+A' }, '-',
+        { label: 'Properties', fn: () => this.openPanel('props'), icon: 'props', hint: 'Ctrl+1' });
+    }
+    while (items[0] === '-') items.shift();
+    this.popup(anchor, items);
+  },
 
   refresh3D() {
     $('viewport').classList.toggle('v3d', !!App.v3d);
@@ -456,7 +488,7 @@ const UI = {
     App.modes[m] = !App.modes[m];
     if (m === 'ortho' && App.modes.ortho) App.modes.polar = false;
     if (m === 'polar' && App.modes.polar) App.modes.ortho = false;
-    const names = { grid: 'Grid', snap: 'Snap', ortho: 'Ortho', polar: 'Polar', osnap: 'Osnap', dyn: 'Dynamic input', lwt: 'Lineweight display' };
+    const names = { grid: 'Grid', snap: 'Snap', ortho: 'Ortho', polar: 'Polar', osnap: 'Osnap', otrack: 'Object Snap Tracking', dyn: 'Dynamic input', lwt: 'Lineweight display' };
     this.log(`<${names[m]} ${App.modes[m] ? 'on' : 'off'}>`);
     this.refreshStatus(); updateEffective(); updatePreview();
   },
@@ -500,7 +532,8 @@ const UI = {
   },
   updateCoords() {
     const p = App.req && ['point', 'dist', 'angle'].includes(App.req.kind) ? App.eff : App.raw;
-    $('coords').textContent = `${p.x.toFixed(4)}, ${p.y.toFixed(4)}`;
+    const pr = App.prec ?? 4;
+    $('coords').textContent = `${p.x.toFixed(pr)}, ${p.y.toFixed(pr)}`;
   },
   updateDyn() {
     const d = $('dyn');
@@ -513,7 +546,8 @@ const UI = {
       const base = r.base || r.tmpBase;
       if (base && ['point', 'dist', 'angle'].includes(r.kind)) {
         const L = V.dist(base, App.eff), A = deg(normAng(V.ang(base, App.eff)));
-        html += `<span class="v">${typed ? esc(typed) : fmt(L, 3)}</span> &lt; ${fmt(A, 1)}°`;
+        html += App.dynLock ? `<span class="v">${fmt(App.dynLock.len, 3)} &#128274;</span> &lt; <span class="v">${typed ? esc(typed) : fmt(A, 1)}</span>°`
+          : `<span class="v">${typed ? esc(typed) : fmt(L, 3)}</span> &lt; ${fmt(A, 1)}°`;
       } else if (typed) html += `<span class="v">${esc(typed)}</span>`;
     } else html = `<span class="v">${esc(typed)}</span>`;
     d.innerHTML = html;
@@ -561,6 +595,13 @@ const UI = {
         this.updateDyn();
         return;
       }
+      if (ev.key === 'Tab' && App.req && App.req.kind === 'point' && App.req.base && App.modes.dyn) {
+        ev.preventDefault();
+        const n = parseNum(inp.value);
+        if (n !== null && n > 0) { App.dynLock = { len: n }; inp.value = ''; updateEffective(); updatePreview(); App.dirty = true; this.updateDyn(); }
+        else if (App.dynLock) { App.dynLock = null; this.updateDyn(); }
+        return;
+      }
       if (ev.key === 'Tab') { ev.preventDefault(); if (this.sugg.length) { inp.value = this.sugg[Math.max(0, this.suggIdx)]; this.updateSuggest(); } return; }
       if (ev.key === 'ArrowUp' || ev.key === 'ArrowDown') {
         ev.preventDefault();
@@ -576,7 +617,7 @@ const UI = {
       const t = ev.target;
       const isCmd = t === inp;
       const inField = !isCmd && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA');
-      const fk = { F1: () => this.showHelp(), F2: () => this.showHistory(), F3: () => this.toggleMode('osnap'), F7: () => this.toggleMode('grid'), F8: () => this.toggleMode('ortho'), F9: () => this.toggleMode('snap'), F10: () => this.toggleMode('polar'), F12: () => this.toggleMode('dyn') };
+      const fk = { F1: () => this.showHelp(), F2: () => this.showHistory(), F3: () => this.toggleMode('osnap'), F7: () => this.toggleMode('grid'), F8: () => this.toggleMode('ortho'), F9: () => this.toggleMode('snap'), F10: () => this.toggleMode('polar'), F11: () => this.toggleMode('otrack'), F12: () => this.toggleMode('dyn') };
       if (fk[ev.key]) { ev.preventDefault(); fk[ev.key](); return; }
       if (ev.key === 'Escape') {
         if (!$('helpModal').hidden) { $('helpModal').hidden = true; return; }
@@ -593,6 +634,8 @@ const UI = {
       const mod = ev.ctrlKey || ev.metaKey;
       if (mod) {
         const k = ev.key.toLowerCase();
+        if (k === '1') { ev.preventDefault(); const sd = $('side'); if (sd.hidden || !sd.classList.contains('open') && window.innerWidth <= 760) this.openPanel('props'); else { sd.hidden = true; sd.classList.remove('open'); resize(); } return; }
+        if (k === '9') { ev.preventDefault(); $('cmdline').hidden = !$('cmdline').hidden; return; }
         const map = { z: 'UNDO', y: 'REDO', s: 'SAVE', o: 'OPEN', a: 'SELECTALL', n: 'NEW', p: 'PLOT', c: 'COPYCLIP', v: 'PASTECLIP', x: 'CUTCLIP' };
         if (k === 'z' && ev.shiftKey) { ev.preventDefault(); runCommand('REDO'); return; }
         if (map[k] && !(isCmd && 'acvx'.includes(k) && inp.value)) { ev.preventDefault(); runCommand(map[k]); }

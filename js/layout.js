@@ -18,7 +18,7 @@ function curLayout() { return layouts().find(l => l.name === App.space) || null;
 function modelExtents() {
   let r = null;
   for (const e of App.doc.ents) {
-    if (!visible(e)) continue;
+    if (!visible(e) || (typeof INFINITE !== 'undefined' && INFINITE.has(e.type))) continue;
     const b = entBBox(e);
     if (!isFinite(b.x1)) continue;
     r = r ? { x1: Math.min(r.x1, b.x1), y1: Math.min(r.y1, b.y1), x2: Math.max(r.x2, b.x2), y2: Math.max(r.y2, b.y2) } : { ...b };

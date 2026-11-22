@@ -20,7 +20,8 @@ host (e.g. GitHub Pages).
 |---|---|
 | تشغيل أمر | اكتب اسمه أو اختصاره ثم Enter أو Space (مثال: `L`) |
 | إحداثيات مطلقة | `100,50` |
-| إحداثيات نسبية | `@50,0` |
+| إحداثيات نسبية | `@50,0` — ومع DYN (الافتراضي) النقطة الثانية نسبية تلقائياً زي أوتوكاد: `50,0`؛ و`#x,y` للمطلق |
+| تثبيت الطول | اكتب الطول ثم Tab ثم الزاوية ثم Enter |
 | إحداثيات قطبية | `@100<45` (الطول<الزاوية) |
 | طول مباشر | اكتب رقماً فقط فيُرسم في اتجاه المؤشر |
 | إنهاء / تكرار آخر أمر | Enter أو Space أو الزر الأيمن |
@@ -30,7 +31,9 @@ host (e.g. GitHub Pages).
 | عرض الرسم كاملاً | نقر مزدوج على العجلة |
 | تحديد نافذة | سحب من اليسار لليمين (الكائنات داخل النافذة بالكامل) |
 | تحديد تقاطعي | سحب من اليمين لليسار (أي كائن يلمس النافذة) |
-| تعديل نقطة | حدد الكائن ثم اضغط على المربع الأزرق (Grip) |
+| تعديل نقطة | حدد الكائن ثم اضغط على المربع الأزرق (Grip) — Space/Enter يبدّل Stretch → Move → Rotate → Scale → Mirror |
+| قائمة الزر الأيمن | بدون أمر: Repeat / Cut / Copy / Paste / Erase / Move / Properties ... |
+| تتبع الالتقاط (OTRACK) | F11 — قف على نقطة لحظة ثم تحرك أفقياً/رأسياً لترى خط التتبع |
 
 ## الأوامر / Commands
 
@@ -83,6 +86,17 @@ host (e.g. GitHub Pages).
 | CHAMFER | CHA | شطف زاوية بين خطين |
 | BLOCK / INSERT | B / I | إنشاء بلوك / إدراج بلوك |
 | LAYMCUR, LAYOFF, LAYON, LAYISO, LAYLCK, LAYULK | | أدوات الطبقات |
+| XLINE / RAY | XL / RAY | خط إنشائي لانهائي / شعاع |
+| POINT / DDPTYPE | PO / PTYPE | نقطة / شكل النقطة |
+| DIVIDE / MEASURE | DIV / ME | تقسيم كائن لأجزاء متساوية / بمسافة |
+| LENGTHEN | LEN | تغيير الطول (DElta / Percent / Total) |
+| PEDIT | PE | تعديل Polyline (Close/Open/Join/Reverse/Spline/Decurve) |
+| ALIGN | AL | محاذاة بنقطتين مع تكبير اختياري |
+| DIMCONTINUE / DIMBASELINE / DIMSTYLE | DCO / DBA / D | أبعاد متصلة / من خط أساس / نمط الأبعاد |
+| GROUP / UNGROUP | G | تجميع |
+| QSELECT / SELECTSIMILAR | QSE / SIMILAR | تحديد سريع / تحديد المتشابه |
+| PURGE / OVERKILL | PU / OV | تنظيف الطبقات والبلوكات غير المستخدمة / حذف المكرر |
+| DONUT / REVCLOUD / BOUNDARY | DO / RC / BO | حلقة مصمتة / سحابة مراجعة / حدود مغلقة |
 | ERASE | E, Delete | حذف |
 | MATCHPROP | MA | نسخ الخصائص |
 | LINETYPE | LT | عرض أنواع الخطوط (Continuous, Dashed, Hidden, Center, Phantom, DashDot, Dot, Border) |
@@ -101,7 +115,7 @@ host (e.g. GitHub Pages).
 | DXFOUT | DXF | تصدير DXF (يفتح في برامج CAD الأخرى) |
 | SVGOUT / PNGOUT | SVG / PNG | تصدير صورة |
 
-مفاتيح الوظائف: F1 مساعدة، F2 سجل الأوامر، F3 الالتقاط، F7 الشبكة، F8 Ortho، F9 Snap، F10 Polar، F12 الإدخال الديناميكي.
+مفاتيح الوظائف: F1 مساعدة، F2 سجل الأوامر، F3 الالتقاط، F7 الشبكة، F8 Ortho، F9 Snap، F10 Polar، F11 تتبع الالتقاط، F12 الإدخال الديناميكي. Ctrl+1 الخصائص، Ctrl+9 سطر الأوامر.
 
 ## ملفات DWG
 صيغة DWG صيغة مغلقة خاصة بشركة Autodesk، وقراءتها تحتاج مكتبات ضخمة غير متاحة للمتصفح.

@@ -14,7 +14,8 @@ const App = {
   over: false,
   snap: null,                // current osnap {p,t}
   track: null,               // polar track {base, ang}
-  modes: { grid: true, snap: false, ortho: false, polar: true, osnap: true, dyn: true, lwt: false, cons: true },
+  modes: { grid: true, snap: false, ortho: false, polar: true, osnap: true, otrack: true, dyn: true, lwt: false, cons: true },
+  acq: [],
   osnaps: { end: true, mid: true, cen: true, quad: true, int: true, perp: true, ins: true, node: true, near: false },
   gridSize: 10, snapSize: 10, polarInc: 45,
   temp: [],
@@ -49,6 +50,7 @@ function visible(e) { return layerOf(e).on; }
 function editable(e) { const l = layerOf(e); return l.on && !l.locked; }
 function addEnt(e) {
   if (!e.layer) e.layer = App.doc.cur;
+  if (e.type === 'dim' && e.prec === undefined && App.doc.dimPrec !== undefined && e.kind !== 'ang') e.prec = App.doc.dimPrec;
   if (e.id === undefined && !e._keepColor) {
     if (!e.color && App.doc.curColor) e.color = App.doc.curColor;
     if (!e.lt && App.doc.curLt && e.type !== 'hatch') e.lt = App.doc.curLt;
@@ -119,7 +121,7 @@ function zoomRect(r, margin = 0.08) {
 }
 function zoomExtents() {
   if (App.space !== 'Model') { zoomPaper(); return; }
-  const ents = App.doc.ents.filter(visible);
+  const ents = App.doc.ents.filter(e => visible(e) && !(typeof INFINITE !== 'undefined' && INFINITE.has(e.type)));
   if (!ents.length) { App.view = { cx: 100, cy: 70, s: Math.min(CW / 300, CH / 200) || 4 }; App.dirty = true; return; }
   let r = { x1: Infinity, y1: Infinity, x2: -Infinity, y2: -Infinity };
   for (const e of ents) {
@@ -340,6 +342,15 @@ function render() {
     ctx.setLineDash([]);
   }
 
+  if (App.otrack) {
+    ctx.strokeStyle = 'rgba(60,200,120,0.85)'; ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
+    for (const t of App.otrack) R.line(t.a, App.eff);
+    ctx.setLineDash([]);
+    const q = w2s(App.eff); ctx.strokeStyle = '#4cd964'; ctx.beginPath(); ctx.moveTo(q.x - 5, q.y - 5); ctx.lineTo(q.x + 5, q.y + 5); ctx.moveTo(q.x + 5, q.y - 5); ctx.lineTo(q.x - 5, q.y + 5); ctx.stroke();
+    ctx.font = '11px sans-serif'; const lab = App.otrack.length > 1 ? 'Intersection' : `Polar: ${fmt(deg(normAng(App.otrack[0].an)), 0)}°`;
+    ctx.fillStyle = 'rgba(30,30,30,0.85)'; ctx.fillRect(q.x + 10, q.y + 10, ctx.measureText(lab).width + 8, 16); ctx.fillStyle = '#4cd964'; ctx.fillText(lab, q.x + 14, q.y + 22);
+  }
+  if (App.req && App.modes.otrack) for (const a of App.acq) { const q = w2s(a); ctx.strokeStyle = '#4cd964'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(q.x - 4, q.y); ctx.lineTo(q.x + 4, q.y); ctx.moveTo(q.x, q.y - 4); ctx.lineTo(q.x, q.y + 4); ctx.stroke(); }
   if (App.snap) drawSnapMarker(App.snap);
   drawUCS();
 
@@ -438,10 +449,40 @@ function updateEffective() {
       }
     }
   }
+  App.otrack = null;
   if (App.modes.osnap && !r.noSnap && App.space === 'Model') {
     const sn = findOsnap(raw, base);
-    if (sn) { App.snap = sn; p = sn.p; App.track = null; }
+    if (sn) {
+      App.snap = sn; p = sn.p; App.track = null;
+      // object snap tracking: acquire points the cursor rests on
+      if (App.modes.otrack && sn.t !== 'near' && sn.t !== 'perp') {
+        const now = performance.now();
+        if (!App.acqHover || !V.eq(App.acqHover.p, sn.p)) App.acqHover = { p: sn.p, t: now };
+        else if (now - App.acqHover.t > 250 && !App.acq.some(a => V.eq(a, sn.p))) { App.acq.push(V.clone(sn.p)); if (App.acq.length > 5) App.acq.shift(); }
+      }
+    } else if (App.modes.otrack && App.acq.length) {
+      const tol = px(8);
+      const angs = App.modes.polar ? Array.from({ length: Math.round(360 / App.polarInc) }, (_, i) => rad(i * App.polarInc)) : [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+      const hits = [];
+      for (const a of App.acq) for (const an of angs) {
+        const d = { x: Math.cos(an), y: Math.sin(an) };
+        const t = V.dot(V.sub(raw, a), d); if (t <= 0) continue;
+        const q = V.add(a, V.mul(d, t));
+        if (V.dist(q, raw) < tol) hits.push({ a, d, q, an });
+      }
+      if (hits.length) {
+        hits.sort((x, y) => V.dist(x.q, raw) - V.dist(y.q, raw));
+        let best = hits[0], q = best.q, lines = [best];
+        const other = hits.find(h => !V.eq(h.a, best.a) || Math.abs(Math.sin(h.an - best.an)) > 1e-6);
+        if (other && Math.abs(V.cross(best.d, other.d)) > 1e-6) {
+          const x = segSeg(best.a, V.add(best.a, best.d), other.a, V.add(other.a, other.d), true);
+          if (x && V.dist(x.p, raw) < tol * 1.5) { q = x.p; lines = [best, other]; }
+        }
+        p = q; App.track = null; App.otrack = lines.map(l => ({ a: l.a, an: l.an }));
+      }
+    }
   }
+  if (App.dynLock && base) p = V.polar(base, V.dist(base, p) > 1e-9 ? V.ang(base, p) : 0, App.dynLock.len);
   App.eff = p;
 }
 
@@ -486,13 +527,14 @@ async function getSelection(prompt = 'Select objects', o = {}) {
 
 function finish(r, v, echo) {
   if (App.req !== r) return;
-  App.req = null; App.temp = []; App.snap = null; App.track = null;
+  App.req = null; App.dynLock = null; App.temp = []; App.snap = null; App.track = null;
   if (echo !== undefined) UI.echo(r.prompt, echo, r.keywords);
   App.dirty = true;
   r.res(v);
 }
 function cancelReq() {
   const r = App.req;
+  App.dynLock = null;
   if (r) { App.req = null; App.temp = []; App.snap = null; App.track = null; App.win = null; if (r.cleanup) r.cleanup(); r.rej(new Cancel()); }
   App.dirty = true;
 }
@@ -559,7 +601,14 @@ function submitInput(text) {
   if (/^'?(z|zoom)$/i.test(t)) { zoomExtents(); return; }
 
   if (r.kind === 'point') {
-    const c = parseCoord(t, r.base || App.lastPoint);
+    if (App.dynLock && r.base) {
+      const an = parseNum(t);
+      if (an !== null) { const p = V.polar(r.base, rad(an), App.dynLock.len); App.dynLock = null; App.lastPoint = p; finish(r, p, t); return; }
+    }
+    let tt = t;
+    if (tt.startsWith('#')) tt = tt.slice(1);
+    else if (App.modes.dyn && r.base && !tt.startsWith('@') && /[,<]/.test(tt)) tt = '@' + tt; // dynamic input: relative by default
+    const c = parseCoord(tt, r.base || App.lastPoint);
     if (c) { App.lastPoint = c; finish(r, c, t); return; }
     const n = parseNum(t);
     if (n !== null && r.base) {
@@ -621,7 +670,7 @@ async function runCommand(input, queue) {
     if (err instanceof Cancel) UI.log('*Cancel*');
     else { console.error(err); UI.log('Error: ' + err.message, 'err'); }
   } finally {
-    App.cmd = null; App.req = null; App.temp = []; App.queue = []; App.snap = null; App.track = null; App.win = null;
+    App.cmd = null; App.req = null; App.temp = []; App.queue = []; App.acq = []; App.otrack = null; App.snap = null; App.track = null; App.win = null;
     if (App.usedSel) { App.sel.clear(); App.usedSel = false; }
     if (App.doc.cons && App.doc.cons.length) { try { solveConstraints(App.pinned || new Set()); } catch (err) { console.error(err); } }
     App.pinned = null;
@@ -663,7 +712,10 @@ canvas.addEventListener('pointerdown', (ev) => {
     App.pan = { sx: App.scr.x, sy: App.scr.y, cx: App.view.cx, cy: App.view.cy };
     return;
   }
-  if (ev.button === 2) { submitInput(''); return; }
+  if (ev.button === 2) {
+    if (!App.cmd && !App.req && !App.v3d && App.space === 'Model') { UI.contextMenu(ev.clientX, ev.clientY); return; }
+    submitInput(''); return;
+  }
   if (ev.button !== 0) return;
   if (App.v3d) { App.orbit = { x: App.scr.x, y: App.scr.y, yaw: V3.yaw, pitch: V3.pitch }; return; }
   downInfo = { x: App.scr.x, y: App.scr.y, shift: ev.shiftKey, touch: ev.pointerType === 'touch' };
@@ -693,7 +745,8 @@ function handlePress(shift) {
   }
   const e = pickEnt(App.raw);
   if (e) {
-    if (shift) App.sel.delete(e.id); else App.sel.add(e.id);
+    const grp = typeof groupOf === 'function' ? groupOf(e.id) : null;
+    for (const id of grp ? grp.ids : [e.id]) { if (shift) App.sel.delete(id); else App.sel.add(id); }
     App.dirty = true; UI.refreshProps();
     return;
   }
@@ -788,14 +841,42 @@ function startGrip(e, g) {
   App.dirty = true;
   runCommand(async () => {
     App.hotGrip = { id: e.id, p: g.p };
-    UI.log('** STRETCH **');
-    const p = await getPoint('Specify stretch point', {
-      base: g.p,
-      preview: (q) => { const c = entClone(e); const gg = Types[c.type].grips(c).find(x => V.eq(x.p, g.p)); if (gg) gg.set(c, q); c.dash = true; return [c]; },
-    });
-    if (p && typeof p === 'object') {
-      if (e.type === 'line') { const gs = Types.line.grips(e); const i = gs.findIndex(x => V.eq(x.p, g.p)); App.pinned = new Set(i === 0 ? [e.id + ':p1'] : i === 1 ? [e.id + ':p2'] : [e.id + ':p1', e.id + ':p2']); }
-      g.set(e, p); invalidate(e);
+    const modes = ['STRETCH', 'MOVE', 'ROTATE', 'SCALE', 'MIRROR'];
+    let mi = 0, copy = false;
+    const base = g.p;
+    const sel = selEnts().filter(editable);
+    const mfor = (mode, q) => {
+      if (mode === 'MOVE') return M.translate(q.x - base.x, q.y - base.y);
+      if (mode === 'ROTATE') return M.rotate(base, V.ang(base, q));
+      if (mode === 'SCALE') { const k = V.dist(base, q); return k > 1e-9 ? M.scale(base, k) : null; }
+      if (mode === 'MIRROR') return V.dist(base, q) > 1e-9 ? M.mirror(base, q) : null;
+      return null;
+    };
+    for (;;) {
+      const mode = modes[mi];
+      UI.log(`** ${mode}${copy ? ' (multiple)' : ''} **`);
+      const prompt = { STRETCH: 'Specify stretch point', MOVE: 'Specify move point', ROTATE: 'Specify rotation angle', SCALE: 'Specify scale factor', MIRROR: 'Specify second point' }[mode];
+      const p = await getPoint(`${prompt} or [Copy/eXit]`, {
+        base, keywords: ['Copy', 'eXit'],
+        preview: (q) => {
+          if (mode === 'STRETCH') { const c = entClone(e); const gg = Types[c.type].grips(c).find(x => V.eq(x.p, g.p)); if (gg) gg.set(c, q); c.dash = true; return [c]; }
+          const m = mfor(mode, q); return m ? sel.map(x => entTransform(entClone(x), m)) : [];
+        },
+      });
+      if (p === null) { mi = (mi + 1) % modes.length; continue; }   // Enter / Space cycles grip modes
+      if (p === 'Copy') { copy = true; continue; }
+      if (p === 'eXit') break;
+      if (!isPt(p)) break;
+      if (mode === 'STRETCH') {
+        if (e.type === 'line') { const gs = Types.line.grips(e); const i = gs.findIndex(x => V.eq(x.p, g.p)); App.pinned = new Set(i === 0 ? [e.id + ':p1'] : i === 1 ? [e.id + ':p2'] : [e.id + ':p1', e.id + ':p2']); }
+        if (copy) { const c = entClone(e); delete c.id; const gg = Types[c.type].grips(c).find(x => V.eq(x.p, g.p)); if (gg) gg.set(c, p); addEnt(c); continue; }
+        g.set(e, p); invalidate(e);
+      } else {
+        const m = mfor(mode, p); if (!m) continue;
+        if (copy) { sel.forEach(x => { const c = entClone(x); delete c.id; c._keepColor = true; addEnt(entTransform(c, m)); }); continue; }
+        sel.forEach(x => entTransform(x, m));
+      }
+      break;
     }
     App.hotGrip = null;
   });

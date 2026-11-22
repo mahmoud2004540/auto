@@ -89,7 +89,7 @@ const IO = {
     const L = [];
     const w = (c, v) => { L.push(String(c)); L.push(String(v)); };
     const num = (n) => (Math.abs(n) < 1e-12 ? 0 : +n.toFixed(8));
-    w(0, 'SECTION'); w(2, 'HEADER'); w(9, '$ACADVER'); w(1, 'AC1009'); w(9, '$INSUNITS'); w(70, 4); w(9, '$LTSCALE'); w(40, App.doc.ltscale || 1); w(0, 'ENDSEC');
+    w(0, 'SECTION'); w(2, 'HEADER'); w(9, '$ACADVER'); w(1, 'AC1009'); w(9, '$INSUNITS'); w(70, 4); w(9, '$PDMODE'); w(70, App.doc.pdmode || 0); w(9, '$LTSCALE'); w(40, App.doc.ltscale || 1); w(0, 'ENDSEC');
     w(0, 'SECTION'); w(2, 'TABLES');
     const ltk = Object.keys(LTYPES);
     w(0, 'TABLE'); w(2, 'LTYPE'); w(70, ltk.length);
@@ -123,7 +123,9 @@ const IO = {
         head('POLYLINE'); w(66, 1); w(10, 0); w(20, 0); w(30, 0); w(70, e.closed ? 1 : 0);
         for (const p of e.pts) { w(0, 'VERTEX'); w(8, e.layer || '0'); w(10, num(p.x)); w(20, num(p.y)); w(30, 0); }
         w(0, 'SEQEND'); w(8, e.layer || '0');
-      } else if (e.type === 'insert') { head('INSERT'); w(2, e.name); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(41, num(e.sx || 1)); w(42, num(e.sy || 1)); w(43, 1); w(50, num(deg(normAng(e.rot || 0)))); }
+      } else if (e.type === 'point') { head('POINT'); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); }
+      else if (e.type === 'xline' || e.type === 'ray') { const [a, b] = [e.type === 'ray' ? e.p : V.sub(e.p, V.mul(e.d, 1e4)), V.add(e.p, V.mul(e.d, 1e4))]; head('LINE'); w(10, num(a.x)); w(20, num(a.y)); w(30, 0); w(11, num(b.x)); w(21, num(b.y)); w(31, 0); }
+      else if (e.type === 'insert') { head('INSERT'); w(2, e.name); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(41, num(e.sx || 1)); w(42, num(e.sy || 1)); w(43, 1); w(50, num(deg(normAng(e.rot || 0)))); }
       else if (e.type === 'text') { head('TEXT'); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(40, num(e.h)); w(1, e.s); w(50, num(deg(normAng(e.rot || 0)))); }
     };
     w(0, 'SECTION'); w(2, 'BLOCKS');
@@ -323,7 +325,7 @@ const IO = {
             if (loops.length) sink.push({ ...base, type: 'hatch', loops, pat: solid ? 'SOLID' : (HATCH_PATTERNS[name] ? name : 'ANSI31'), scale: getN(r, 41, 1) || 1, ang: rad(getN(r, 52, 0)) });
             break;
           }
-          case 'POINT': sink.push({ ...base, type: 'circle', c: { x: getN(r, 10), y: getN(r, 20) }, r: 0.05 }); break;
+          case 'POINT': sink.push({ ...base, type: 'point', p: { x: getN(r, 10), y: getN(r, 20) } }); break;
           case 'INSERT': case 'DIMENSION': {
             if (depth > 8) break;
             const bname = get(r, 2, ''); const b = blocks.get(bname); if (!b) break;

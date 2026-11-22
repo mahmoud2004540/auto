@@ -135,7 +135,10 @@ svg.ic { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-wid
 .ltabs button { padding: 3px 10px; color: var(--fg2); border-radius: 3px; }
 .ltabs .lt.active { background: var(--bg2); color: #fff; font-weight: 600; }
 .ltabs button:hover { background: var(--bg3); color: #fff; }
-.rgroup .glabel::after { content: " \25BE"; font-size: 9px; }
+.rgroup .glabel::after { content: ""; }
+.rgroup .glabel.hasmore { cursor: pointer; }
+.rgroup .glabel.hasmore::after { content: " \25BE"; font-size: 9px; }
+.rgroup .glabel.hasmore:hover { background: #3a4350; color: #fff; }
 #osnapMenu { position: fixed; bottom: 30px; background: var(--bg2); border: 1px solid var(--line); border-radius: 4px; padding: 6px; z-index: 30; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
 #osnapMenu label { display: flex; gap: 6px; align-items: center; padding: 3px 6px; cursor: pointer; }
 #osnapMenu label:hover { background: var(--bg3); }
@@ -238,3 +241,5 @@ svg.ic .fb { fill: #4aa8ff; stroke: none; } svg.ic .fy { fill: #f5c542; stroke: 
 .mteditor .mtbar { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-size: 11px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .mteditor .mtbar .muted { flex: 1; }
 .mteditor textarea { display: block; background: rgba(15,19,24,.9); color: #fff; border: 0; outline: 0; padding: 6px 8px; resize: both; font-family: Arial, Helvetica, sans-serif; min-height: 2em; max-width: calc(100vw - 40px); }
+
+.rgroup .items { flex-wrap: nowrap; max-width: none; }
