@@ -98,6 +98,8 @@ svg.ic { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-wid
 /* command line */
 #cmdline { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: min(880px, calc(100% - 24px)); z-index: 6; font-family: Consolas, "SF Mono", Menlo, monospace; font-size: 12px; }
 #history { height: 52px; overflow-y: auto; padding: 3px 10px; color: #c9d2dd; white-space: pre-wrap; background: rgba(24,29,36,.72); border-radius: 4px 4px 0 0; scrollbar-width: thin; }
+#cmdline { pointer-events: none; }
+#cmdrow, #suggest, #history.big, #history .kw { pointer-events: auto; }
 #history.big { height: 240px; background: rgba(24,29,36,.94); }
 #history .cmd { color: #fff; }
 #history .err { color: var(--err); }

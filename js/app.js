@@ -110,9 +110,10 @@ function zoomAt(sp, f) {
 function zoomRect(r, margin = 0.08) {
   const w = r.x2 - r.x1, h = r.y2 - r.y1;
   if (!isFinite(w) || !isFinite(h)) return;
-  App.view.cx = (r.x1 + r.x2) / 2; App.view.cy = (r.y1 + r.y2) / 2;
-  const s = Math.min(CW / Math.max(w, 1e-6), CH / Math.max(h, 1e-6)) * (1 - margin * 2);
+  const pad = margin > 0 ? Math.min(100, CH * 0.25) : 0; // keep clear of the floating command line
+  const s = Math.min(CW / Math.max(w, 1e-6), (CH - pad) / Math.max(h, 1e-6)) * (1 - margin * 2);
   App.view.s = (w < 1e-9 && h < 1e-9) ? App.view.s : s;
+  App.view.cx = (r.x1 + r.x2) / 2; App.view.cy = (r.y1 + r.y2) / 2 - pad / 2 / App.view.s;
   App.dirty = true;
 }
 function zoomExtents() {
