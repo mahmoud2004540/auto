@@ -553,7 +553,7 @@ const UI = {
     App.modes[m] = !App.modes[m];
     if (m === 'ortho' && App.modes.ortho) App.modes.polar = false;
     if (m === 'polar' && App.modes.polar) App.modes.ortho = false;
-    const names = { grid: 'Grid', snap: 'Snap', ortho: 'Ortho', polar: 'Polar', osnap: 'Osnap', otrack: 'Object Snap Tracking', dyn: 'Dynamic input', lwt: 'Lineweight display' };
+    const names = { grid: 'Grid', snap: 'Snap', ortho: 'Ortho', polar: 'Polar', osnap: 'Osnap', otrack: 'Object Snap Tracking', dyn: 'Dynamic input', lwt: 'Lineweight display', transp: 'Transparency display', selcyc: 'Selection cycling', qp: 'Quick Properties', cons: 'Constraint bars' };
     this.log(`<${names[m]} ${App.modes[m] ? 'on' : 'off'}>`);
     this.refreshStatus(); updateEffective(); updatePreview();
   },

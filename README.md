@@ -168,6 +168,14 @@ host (e.g. GitHub Pages).
 - **Dimension Style Manager (D)**: Standard / ISO-25 / Architectural، Set Current / New / Modify مع معاينة، وتبويبات Lines / Symbols and Arrows / Text / Fit / Primary Units (أسهم Closed filled / Architectural tick / Dot / Open، حجم السهم، النص فوق أو في النص، Horizontal أو Aligned، المقياس الكلي، الدقة، الفاصلة، Prefix / Suffix، Scale factor، Zero suppression). تعديل النمط بيحدّث كل الأبعاد اللي عليه.
 - **Text Editor**: تبويب بيظهر وقت كتابة MTEXT — ارتفاع النص، UPPERCASE / lowercase، رموز (° ± Ø ≈ ∠ Δ ...)، Field (التاريخ / اسم الملف)، Find & Replace، Close Text Editor.
 
+## Express Tools ومساحات العمل وشريط الحالة
+- تبويب **Express Tools**: TXT2MTXT، TCOUNT، TCASE، BURST، BREAKLINE، FLATTEN، LAYMRG، LAYDEL.
+- عزل الكائنات وإخفاؤها: ISOLATEOBJECTS و HIDEOBJECTS و UNISOLATEOBJECTS (زر العزل في شريط الحالة).
+- CLEANSCREENON / Ctrl+0: شاشة نظيفة بإخفاء الشريط والتبويبات واللوحات.
+- مساحات العمل: Drafting & Annotation و 3D Modeling، من زر الترس في شريط الحالة.
+- شريط الحالة فيه كمان: Transparency و Selection Cycling و Annotation Scale و Quick Properties.
+- لوحة Quick Properties بتظهر جنب الكائن المختار.
+
 ## الحفظ
 - من جهازك (index.html): الملفات بتتنزّل عادي.
 - من رابط claude.ai: البرنامج بيستخدم خاصية التنزيل الخاصة بالمنصة؛ JSON و PDF و PNG و SVG بتتحفظ مباشرة، و DXF بيتحفظ جوه ملف ZIP (البرنامج نفسه بيفتح ملف الـ ZIP على طول).

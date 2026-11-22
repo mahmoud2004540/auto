@@ -47,7 +47,7 @@ App.doc = newDoc();
 function inModel() { return App.space === 'Model' || App.vpActive != null; }
 function layerOf(e) { return App.doc.layers.find(l => l.name === e.layer) || App.doc.layers[0]; }
 function entColor(e) { return e.color || layerOf(e).color; }
-function visible(e) { const l = layerOf(e); return l.on && !l.frozen; }
+function visible(e) { const l = layerOf(e); return l.on && !l.frozen && !(App.hidden && App.hidden.size && App.hidden.has(e.id)); }
 function editable(e) { const l = layerOf(e); return l.on && !l.frozen && !l.locked; }
 function addEnt(e) {
   if (!e.layer) e.layer = App.doc.cur;
@@ -295,7 +295,7 @@ function render() {
     const hovered = inSelectMode && App.hover === e.id;
     ctx.strokeStyle = c; ctx.fillStyle = c;
     ctx.lineWidth = 1;
-    const L0 = layerOf(e); ctx.globalAlpha = Math.max(0.1, 1 - ((e.tr ?? L0.tr) || 0) / 100) * (L0.locked ? 0.5 : 1);
+    const L0 = layerOf(e); ctx.globalAlpha = (App.modes.transp ? Math.max(0.1, 1 - ((e.tr ?? L0.tr) || 0) / 100) : 1) * (L0.locked ? 0.5 : 1);
     applyEntStyle(ctx, e, App.view.s, lwPx);
     if (hovered) ctx.lineWidth = Math.max(ctx.lineWidth, 2.5);
     if (selected) {
