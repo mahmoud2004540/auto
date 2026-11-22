@@ -149,7 +149,7 @@ const RIBBON = {
   ],
   Insert: [
     { label: 'Block', items: [['INSERT', 'Insert', 'insert'], ['BLOCK', 'Create Block', 'blockc']] },
-    { label: 'Import', items: [['OPEN', 'Open DXF', 'open'], ['PASTECLIP', 'Paste', 'paste']] },
+    { label: 'Import', items: [['OPEN', 'Open DWG/DXF', 'open'], ['PASTECLIP', 'Paste', 'paste']] },
   ],
   Annotate: [
     { label: 'Text', items: [['MTEXT', 'Multiline Text', 'text'], { col: [['TEXT', 'Single Line', 'text'], ['TEXTEDIT', 'Edit Text', 'match']] }] },
@@ -366,7 +366,7 @@ const UI = {
   },
   appMenu(anchor) {
     this.popup(anchor, [
-      { label: 'New', cmd: 'NEW', icon: 'new', hint: 'Ctrl+N' }, { label: 'Open...', cmd: 'OPEN', icon: 'open', hint: 'Ctrl+O' },
+      { label: 'New', cmd: 'NEW', icon: 'new', hint: 'Ctrl+N' }, { label: 'Open (DWG / DXF)...', cmd: 'OPEN', icon: 'open', hint: 'Ctrl+O' },
       { label: 'Save', cmd: 'SAVE', icon: 'save', hint: 'Ctrl+S' }, { label: 'Save As...', cmd: 'SAVE', icon: 'save' }, '-',
       { label: 'Export DXF', cmd: 'DXFOUT', icon: 'export' }, { label: 'Export SVG', cmd: 'SVGOUT', icon: 'svg' },
       { label: 'Plot (PDF)...', cmd: 'PLOT', icon: 'pdf', hint: 'Ctrl+P' }, { label: 'Page Setup...', cmd: 'PAGESETUP', icon: 'pagesetup' },
@@ -846,7 +846,7 @@ const UI = {
         <tr><td>F2 / F3 / F7 / F8 / F9 / F10 / F12</td><td>History / Osnap / Grid / Ortho / Snap / Polar / Dynamic input</td></tr>
         <tr><td>Ctrl+Z / Ctrl+Y / Ctrl+S / Ctrl+O / Ctrl+A</td><td>Undo / Redo / Save / Open / Select all</td></tr>
         <tr><td>Delete</td><td>Erase selection</td></tr>
-        <tr><td>Drag &amp; drop</td><td>Drop a .dxf or .json file onto the drawing area to open it</td></tr>
+        <tr><td>Drag &amp; drop</td><td>Drop a .dwg, .dxf, .json or .lsp file onto the drawing area to open it</td></tr>
       </table>
       <h4>Commands</h4>
       <table><tr><th>Command</th><th>Alias</th><th>Description</th></tr>${rows}</table>`;

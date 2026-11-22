@@ -39,6 +39,11 @@ function exportables(keepInserts) {
   return out;
 }
 
+function acText(s) {
+  return String(s || '').replace(/\\U\+([0-9A-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/%%[cC]/g, '\u00d8').replace(/%%[dD]/g, '\u00b0').replace(/%%[pP]/g, '\u00b1').replace(/%%[uUoOkK]/g, '').replace(/%%%/g, '%');
+}
+
 const IO = {
   newDrawing() {
     App.doc = newDoc(); App.undo = []; App.redo = []; App.sel.clear(); App.modified = false;
@@ -55,12 +60,53 @@ const IO = {
 
   open() {
     const inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = '.json,.dxf';
+    inp.type = 'file'; inp.accept = '.dwg,.dxf,.json';
     inp.onchange = () => { const f = inp.files[0]; if (f) IO.loadFile(f); };
     inp.click();
   },
 
+  // DWG → DXF through LibreDWG (WebAssembly, GPL-3.0), loaded on first use
+  DWG_BASE: 'https://cdn.jsdelivr.net/npm/@mlightcad/libredwg-web@0.8.2/wasm/',
+  async dwgToDxf(buf) {
+    if (!IO._dwgMod) {
+      UI.log('Loading the DWG reader (first time only, about 11 MB)...', 'info');
+      const mod = await import(IO.DWG_BASE + 'libredwg-web.js');
+      const create = mod.default || mod.createModule;
+      let lastErr = null;
+      for (const w of ['vendor/libredwg/libredwg-web.wasm', IO.DWG_BASE + 'libredwg-web.wasm']) {
+        try { IO._dwgMod = await create({ locateFile: (f) => (f.endsWith('.wasm') ? w : IO.DWG_BASE + f), print: () => {}, printErr: () => {} }); break; } catch (e) { lastErr = e; }
+      }
+      if (!IO._dwgMod) throw new Error('Could not load the DWG reader' + (lastErr ? ': ' + lastErr.message : '') + '. Check the internet connection.');
+    }
+    const m = IO._dwgMod;
+    m.FS.writeFile('in.dwg', new Uint8Array(buf));
+    try {
+      let err;
+      try { err = m.dwg_write_dxf('in.dwg', 'out.dxf'); } catch (e) { IO._dwgMod = null; throw new Error('This DWG file could not be read (' + e.message + ').'); }
+      let out = null; try { out = m.FS.readFile('out.dxf'); } catch (_) { out = null; }
+      if (!out || !out.length) throw new Error(`This DWG file could not be read (error code ${err}). Try saving it as DXF from AutoCAD.`);
+      return new TextDecoder('utf-8').decode(out);
+    } finally {
+      try { m.FS.unlink('in.dwg'); } catch (_) { /* ignore */ }
+      try { m.FS.unlink('out.dxf'); } catch (_) { /* ignore */ }
+    }
+  },
+
   loadFile(f) {
+    if (/\.dwg$/i.test(f.name)) {
+      const rb = new FileReader();
+      rb.onload = async () => {
+        try {
+          const head = new TextDecoder('ascii').decode(new Uint8Array(rb.result, 0, 6));
+          const ver = { AC1012: 'R13', AC1014: 'R14', AC1015: '2000', AC1018: '2004', AC1021: '2007', AC1024: '2010', AC1027: '2013', AC1032: '2018' }[head] || head;
+          UI.log(`Reading ${f.name} (AutoCAD ${ver} format)...`, 'info');
+          const text = await IO.dwgToDxf(rb.result);
+          IO.openDoc(IO.parseDXF(text), f.name);
+        } catch (err) { console.error(err); UI.log('Could not open file: ' + err.message, 'err'); }
+      };
+      rb.readAsArrayBuffer(f);
+      return;
+    }
     const rd = new FileReader();
     rd.onload = () => {
       try {
@@ -72,16 +118,35 @@ const IO = {
           doc = j.doc || j;
           if (!Array.isArray(doc.ents) || !Array.isArray(doc.layers)) throw new Error('Not a drawing file');
         }
-        const before = snapshot();
-        App.doc = Object.assign(newDoc(), doc);
-        App.undo = [before]; App.redo = []; App.sel.clear();
-        App.fileName = f.name.replace(/\.(json|dxf)$/i, '');
-        App.modified = false;
-        zoomExtents(); UI.refreshAll();
-        UI.log(`Opened ${f.name}: ${App.doc.ents.length} object(s), ${App.doc.layers.length} layer(s).`, 'info');
+        IO.openDoc(doc, f.name);
       } catch (err) { console.error(err); UI.log('Could not open file: ' + err.message, 'err'); }
     };
     rd.readAsText(f);
+  },
+
+  // initial view after opening: ignore a few objects that are far larger than the rest
+  focusMainDrawing() {
+    const items = App.doc.ents.filter(e => visible(e) && !INFINITE.has(e.type)).map(e => ({ e, b: entBBox(e) })).filter(x => isFinite(x.b.x1));
+    if (items.length < 8) return;
+    const diag = (b) => Math.hypot(b.x2 - b.x1, b.y2 - b.y1);
+    const ds = items.map(x => diag(x.b)).sort((a, b) => a - b), med = ds[Math.floor(ds.length / 2)] || 1;
+    const core = items.filter(x => diag(x.b) <= med * 200);
+    if (core.length === items.length || core.length < items.length * 0.9) return;
+    let r = { x1: Infinity, y1: Infinity, x2: -Infinity, y2: -Infinity };
+    for (const { b } of core) r = { x1: Math.min(r.x1, b.x1), y1: Math.min(r.y1, b.y1), x2: Math.max(r.x2, b.x2), y2: Math.max(r.y2, b.y2) };
+    zoomRect(r);
+    UI.log(`${items.length - core.length} object(s) are much larger than the rest of the drawing; type Z then E to see everything.`, 'info');
+  },
+
+  openDoc(doc, name) {
+    const before = snapshot();
+    if (App.space !== 'Model') switchSpace('Model');
+    App.doc = Object.assign(newDoc(), doc);
+    App.undo = [before]; App.redo = []; App.sel.clear();
+    App.fileName = name.replace(/\.(json|dxf|dwg)$/i, '');
+    App.modified = false;
+    zoomExtents(); IO.focusMainDrawing(); UI.refreshAll();
+    UI.log(`Opened ${name}: ${App.doc.ents.length} object(s), ${App.doc.layers.length} layer(s), ${Object.keys(App.doc.blocks || {}).length} block(s).`, 'info');
   },
 
   // ---------- DXF export (R12 ASCII) ----------
@@ -204,6 +269,7 @@ const IO = {
     const convert = (recs, sink, depth) => {
       for (let k = 0; k < recs.length; k++) {
         const r = recs[k];
+        if (depth === 0 && parseInt(get(r, 67, '0'), 10) === 1) continue; // paper space object
         const base = { layer: ensureLayer(get(r, 8, '0')) };
         const col = get(r, 62); if (col !== undefined && +col !== 256 && +col !== 0) base.color = aciToHex(+col);
         const elt = ltName(get(r, 6)); if (elt) base.lt = elt;
@@ -234,18 +300,34 @@ const IO = {
             break;
           }
           case 'TEXT': case 'ATTRIB': {
-            const s = get(r, 1, ''); if (!s) break;
+            const s = acText(get(r, 1, '')); if (!s) break;
             let p = { x: getN(r, 10), y: getN(r, 20) };
-            if ((getN(r, 72) || getN(r, 73)) && get(r, 11) !== undefined) p = { x: getN(r, 11), y: getN(r, 21) };
-            sink.push({ ...base, type: 'text', p, h: getN(r, 40, 2.5) || 2.5, rot: rad(getN(r, 50)), s });
+            const h = getN(r, 40, 2.5) || 2.5, rot = rad(getN(r, 50)), hj = getN(r, 72), vj = getN(r, 74) || getN(r, 73);
+            if ((hj || vj) && get(r, 11) !== undefined) {
+              p = { x: getN(r, 11), y: getN(r, 21) };
+              const w = textWidth(s, h), ux = { x: Math.cos(rot), y: Math.sin(rot) }, uy = V.perp(ux);
+              const dx = hj === 1 || hj === 4 ? -w / 2 : hj === 2 ? -w : 0, dy = vj === 2 || hj === 4 ? -h / 2 : vj === 3 ? -h : 0;
+              p = V.add(p, V.add(V.mul(ux, dx), V.mul(uy, dy)));
+            }
+            sink.push({ ...base, type: 'text', p, h, rot, s });
             break;
           }
           case 'MTEXT': {
-            let s = r.g.filter(x => x[0] === 3 || x[0] === 1).map(x => x[1]).join('');
+            let s = r.g.filter(x => x[0] === 3 || x[0] === 1).map(x => x[1]).join('').replace(/\\U\+([0-9A-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
             s = s.replace(/\\P/g, '\n').replace(/\\[A-Za-z][^;]*;/g, '').replace(/[{}]/g, '');
             const h = getN(r, 40, 2.5) || 2.5; let p = { x: getN(r, 10), y: getN(r, 20) };
             const rot = get(r, 50) !== undefined ? rad(getN(r, 50)) : Math.atan2(getN(r, 21), getN(r, 11) || 1);
-            if (s.trim()) sink.push({ ...base, type: 'mtext', p, h, rot, s, w: getN(r, 41, 0) });
+            s = acText(s);
+            if (s.trim()) {
+              const mt = { ...base, type: 'mtext', p, h, rot, s, w: getN(r, 41, 0) };
+              const att = getN(r, 71, 1);
+              if (att > 1) {
+                const L = mtextLayout(mt), ux = { x: Math.cos(rot), y: Math.sin(rot) }, uy = V.perp(ux);
+                const col = (att - 1) % 3, row = Math.floor((att - 1) / 3);
+                mt.p = V.add(p, V.add(V.mul(ux, -L.w * col / 2), V.mul(uy, L.hgt * row / 2)));
+              }
+              sink.push(mt);
+            }
             break;
           }
           case 'ELLIPSE': {
@@ -325,7 +407,46 @@ const IO = {
             if (loops.length) sink.push({ ...base, type: 'hatch', loops, pat: solid ? 'SOLID' : (HATCH_PATTERNS[name] ? name : 'ANSI31'), scale: getN(r, 41, 1) || 1, ang: rad(getN(r, 52, 0)) });
             break;
           }
+          case 'XLINE': case 'RAY': {
+            const d = V.norm({ x: getN(r, 11, 1), y: getN(r, 21, 0) });
+            sink.push({ ...base, type: r.type === 'RAY' ? 'ray' : 'xline', p: { x: getN(r, 10), y: getN(r, 20) }, d }); break;
+          }
+          case 'SOLID': case 'TRACE': {
+            const q = [10, 11, 13, 12].map(c => ({ x: getN(r, c, NaN), y: getN(r, c + 10, NaN) })).filter(p => isFinite(p.x) && isFinite(p.y));
+            const pts = q.filter((p, i) => !q.slice(0, i).some(o => V.eq(o, p)));
+            if (pts.length > 2) sink.push({ ...base, type: 'hatch', loops: [pts], pat: 'SOLID', scale: 1, ang: 0 });
+            break;
+          }
+          case '3DFACE': {
+            const q = [10, 11, 12, 13].map(c => ({ x: getN(r, c, NaN), y: getN(r, c + 10, NaN) })).filter(p => isFinite(p.x));
+            if (q.length > 2) sink.push({ ...base, type: 'pline', pts: q, closed: true });
+            break;
+          }
+          case 'TOLERANCE': {
+            const t = acText(get(r, 1, '')).replace(/%%v/gi, ' | ').replace(/\{\\Fgdt;(.)\}/g, '$1');
+            if (t) sink.push({ ...base, type: 'text', p: { x: getN(r, 10), y: getN(r, 20) }, h: doc.dimH || 2.5, rot: 0, s: t });
+            break;
+          }
+          case 'MULTILEADER': {
+            let mode = '', h = 0, txt = '', landing = null; const line = []; let cur = null;
+            for (const [c, v] of r.g) {
+              const vt = String(v).trim();
+              if (c === 300 && vt === 'CONTEXT_DATA{') mode = 'ctx';
+              else if (c === 302 && vt === 'LEADER{') mode = 'leader';
+              else if (c === 304 && vt === 'LEADER_LINE{') mode = 'line';
+              else if (c === 305 || c === 303) mode = 'ctx';
+              else if (c === 304) txt = txt || v;
+              else if (c === 41 && mode === 'ctx' && !h) h = parseFloat(v);
+              else if (c === 10 && (mode === 'line' || mode === 'leader')) { cur = { x: parseFloat(v), y: 0 }; if (mode === 'line') line.push(cur); else landing = cur; }
+              else if (c === 20 && cur) { cur.y = parseFloat(v); cur = null; }
+            }
+            const pts = [...line]; if (landing && (!pts.length || !V.eq(pts[pts.length - 1], landing))) pts.push(landing);
+            const s2 = acText(txt).replace(/\\P/g, ' ').replace(/\\[A-Za-z][^;]*;/g, '').replace(/[{}]/g, '');
+            if (pts.length > 1) sink.push({ ...base, type: 'leader', pts, s: s2, h: h || 2.5 });
+            break;
+          }
           case 'POINT': sink.push({ ...base, type: 'point', p: { x: getN(r, 10), y: getN(r, 20) } }); break;
+          case 'ARC_DIMENSION': case 'LARGE_RADIAL_DIMENSION': case 'ACAD_TABLE':
           case 'INSERT': case 'DIMENSION': {
             if (depth > 8) break;
             const bname = get(r, 2, ''); const b = blocks.get(bname); if (!b) break;
@@ -334,7 +455,7 @@ const IO = {
               const sub = []; convert(b.recs, sub, depth + 1);
               doc.blocks[bname].ents = sub;
             }
-            if (r.type === 'DIMENSION') sink.push({ ...base, type: 'insert', name: bname, p: { x: b.base.x, y: b.base.y }, sx: 1, sy: 1, rot: 0 });
+            if (r.type !== 'INSERT') sink.push({ ...base, type: 'insert', name: bname, p: { x: b.base.x, y: b.base.y }, sx: 1, sy: 1, rot: 0 });
             else sink.push({ ...base, type: 'insert', name: bname, p: { x: getN(r, 10), y: getN(r, 20) }, sx: getN(r, 41, 1) || 1, sy: getN(r, 42, 1) || 1, rot: rad(getN(r, 50)) });
             break;
           }

@@ -611,7 +611,7 @@ def('NEW', ['QNEW'], 'New drawing', async () => {
   }
   IO.newDrawing();
 }, { noUndo: true, noRepeat: true });
-def('OPEN', [], 'Open drawing (.json / .dxf)', async () => { IO.open(); }, { noUndo: true, noRepeat: true });
+def('OPEN', [], 'Open drawing (.dwg / .dxf / .json)', async () => { IO.open(); }, { noUndo: true, noRepeat: true });
 def('SAVE', ['QSAVE', 'SAVEAS'], 'Save drawing (.json)', async () => { IO.save(); }, { noUndo: true, noRepeat: true });
 def('DXFOUT', ['EXPORT', 'DXF'], 'Export DXF', async () => { IO.exportDXF(); }, { noUndo: true, noRepeat: true });
 def('SVGOUT', ['SVG'], 'Export SVG', async () => { IO.exportSVG(); }, { noUndo: true, noRepeat: true });
