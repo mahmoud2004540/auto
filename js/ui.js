@@ -100,6 +100,11 @@ Object.assign(ICONS, {
   gcperp: '<path d="M4 20h16M12 20V4"/><path class="b" d="M12 16h4v4"/>',
   gceq: '<path class="b" d="M5 9h14M5 15h14"/>',
   st_otrack: '<rect x="3" y="14" width="6" height="6"/><path d="M9 17h12M6 14V3" stroke-dasharray="2 2"/>',
+  palette: '<rect x="3" y="3" width="8" height="8"/><rect class="b" x="13" y="3" width="8" height="8"/><rect class="b" x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/>',
+  door: '<path d="M4 20V4"/><path class="b" d="M4 4a16 16 0 0 1 16 16"/><path d="M4 20h16"/>',
+  window: '<rect x="2" y="9" width="20" height="6"/><path class="b" d="M2 11.5h20M2 12.5h20"/>',
+  stair: '<rect x="5" y="2" width="14" height="20"/><path d="M5 6h14M5 10h14M5 14h14M5 18h14"/><path class="b" d="M12 20V4M10 6l2-2 2 2"/>',
+  gnd: '<path d="M12 3v9M5 12h14M8 16h8M11 20h2"/>',
   st_grid: '<path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/>',
   st_snap: '<g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="19" cy="5" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="19" r="1.5"/><circle cx="12" cy="19" r="1.5"/><circle cx="19" cy="19" r="1.5"/></g>',
   st_ortho: '<path d="M5 3v16h16"/>',
@@ -160,6 +165,23 @@ const RIBBON = {
     { label: 'Views', items: [['ORBIT', '3D Orbit', 'orbit'], ['PLAN', 'Top (2D)', 'zoomext'], { col: [['EXTRUDE', 'Extrude', 'extrude'], ['VSCURRENT', 'Visual Style', 'shaded']] }] },
     { label: 'Palettes', items: [['PROPERTIES', 'Properties', 'props'], ['LAYER', 'Layers', 'layers'], ['TOGGLE_SIDE', 'Show/Hide', 'props']] },
   ],
+  Architecture: [
+    { label: 'Walls', items: [['WALL', 'Wall', 'rect']] },
+    { label: 'Openings', items: [['TOOL:door', 'Door', 'door'], ['TOOL:door2', 'Double Door', 'door'], ['TOOL:window', 'Window', 'window'], { col: [['TOOL:slide', 'Sliding Door', 'door'], ['TOOL:stair', 'Stair', 'stair'], ['TOOL:column', 'Column', 'rect']] }] },
+    { label: 'Furniture & Fixtures', items: [{ col: [['TOOL:bed2', 'Double Bed', 'rect'], ['TOOL:sofa', 'Sofa', 'rect'], ['TOOL:dining', 'Dining Table', 'table']] }, { col: [['TOOL:wc', 'WC', 'circle'], ['TOOL:basin', 'Basin', 'circle'], ['TOOL:bath', 'Bathtub', 'rect']] }, ['TOOLS_ARCH', 'All Symbols', 'palette']] },
+    { label: 'Annotation', items: [{ col: [['TOOL:grid', 'Grid Bubble', 'circle'], ['TOOL:level', 'Level Mark', 'dimlin'], ['TOOL:north', 'North Arrow', 'leader']] }] },
+  ],
+  Mechanical: [
+    { label: 'Centers', items: [['CENTERMARK', 'Center Mark', 'gccoin'], ['CENTERLINE', 'Centerline', 'gcpar']] },
+    { label: 'GD&T', items: [['TOLERANCE', 'Tolerance', 'table'], { col: [['TOOL:datum', 'Datum', 'dimlin'], ['TOOL:surf', 'Surface Finish', 'leader'], ['TOOL:weld', 'Weld', 'leader']] }] },
+    { label: 'Fasteners & Parts', items: [{ col: [['TOOL:bolt', 'Hex Bolt', 'rect'], ['TOOL:nut', 'Hex Nut', 'polygon'], ['TOOL:washer', 'Washer', 'circle']] }, { col: [['TOOL:bearing', 'Bearing', 'circle'], ['TOOL:gear', 'Spur Gear', 'circle'], ['TOOL:shaft', 'Shaft', 'circle']] }, ['TOOLS_MECH', 'All Symbols', 'palette']] },
+    { label: 'Modify', items: [['CHAMFER', 'Chamfer', 'fillet'], ['FILLET', 'Fillet', 'fillet']] },
+  ],
+  Electrical: [
+    { label: 'Wiring', items: [['WIRE', 'Wire', 'pline']] },
+    { label: 'Power & Lighting', items: [{ col: [['TOOL:socket', 'Socket', 'circle'], ['TOOL:switch1', 'Switch', 'line'], ['TOOL:light', 'Light', 'circle']] }, { col: [['TOOL:db', 'Distribution Board', 'rect'], ['TOOL:fluor', 'Fluorescent', 'line'], ['TOOL:smoke', 'Smoke Detector', 'circle']] }] },
+    { label: 'Schematic', items: [{ col: [['TOOL:res', 'Resistor', 'rect'], ['TOOL:cap', 'Capacitor', 'gcver'], ['TOOL:diode', 'Diode', 'polygon']] }, { col: [['TOOL:gnd', 'Ground', 'gnd'], ['TOOL:cb', 'Breaker', 'line'], ['TOOL:motor', 'Motor', 'circle']] }, ['TOOLS_ELEC', 'All Symbols', 'palette']] },
+  ],
   Parametric: [
     { label: 'Geometric', items: [['AUTOCONSTRAIN', 'Auto Constrain', 'autocon'], { col: [['GCCOINCIDENT', 'Coincident', 'gccoin'], ['GCHORIZONTAL', 'Horizontal', 'gchor'], ['GCVERTICAL', 'Vertical', 'gcver']] }, { col: [['GCPARALLEL', 'Parallel', 'gcpar'], ['GCPERPENDICULAR', 'Perpendicular', 'gcperp'], ['GCEQUAL', 'Equal', 'gceq']] }, { col: [['GCFIX', 'Fix', 'lockOn'], ['CONSTRAINTBAR', 'Show/Hide', 'props']] }] },
     { label: 'Dimensional', items: [['DCLINEAR', 'Length', 'dimlin']] },
@@ -167,6 +189,7 @@ const RIBBON = {
   ],
   Manage: [
     { label: 'Actions', items: [['UNDO', 'Undo', 'undo'], ['REDO', 'Redo', 'redo'], ['SELECTALL', 'Select All', 'selall']] },
+    { label: 'Customization', items: [['APPLOAD', 'Load Application', 'open'], ['OPTIONS', 'Options', 'props'], ['TOOLPALETTES', 'Tool Palettes', 'palette']] },
     { label: 'Cleanup', items: [['PURGE', 'Purge', 'erase'], ['OVERKILL', 'Overkill', 'join']] },
     { label: 'Drawing', items: [['UNITS', 'Units', 'dist'], ['DIMSTYLE', 'Dim Style', 'dimlin'], ['DDPTYPE', 'Point Style', 'id']] },
     { label: 'Help', items: [['HELP', 'Commands', 'help']] },
@@ -242,7 +265,7 @@ const UI = {
     // drag & drop files
     const vp = $('viewport');
     vp.addEventListener('dragover', (e) => { e.preventDefault(); });
-    vp.addEventListener('drop', (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) IO.loadFile(f); });
+    vp.addEventListener('drop', (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { if (/\.lsp$/i.test(f.name)) lispLoadFile(f); else IO.loadFile(f); } });
     window.addEventListener('beforeunload', (e) => { if (App.modified) { e.preventDefault(); e.returnValue = ''; } });
     this.refreshAll();
   },
@@ -253,8 +276,13 @@ const UI = {
       case 'ZOOM_IN': zoomAt({ x: CW / 2, y: CH / 2 }, 1.5); return;
       case 'ZOOM_OUT': zoomAt({ x: CW / 2, y: CH / 2 }, 1 / 1.5); return;
       case 'TOGGLE_SIDE': this.toggleSide(); return;
+      case 'TOOLS_ARCH': this.openTools('Architecture'); return;
+      case 'TOOLS_MECH': this.openTools('Mechanical'); return;
+      case 'TOOLS_ELEC': this.openTools('Electrical'); return;
       case 'CANCEL': cancelReq(); $('cmdinput').value = ''; this.updateDyn(); return;
-      default: runCommand(cmd);
+      default:
+        if (cmd.startsWith('TOOL:')) { const t = TOOLS.find(x => x.id === cmd.slice(5)); if (t) runCommand(() => insertTool(t)); return; }
+        runCommand(cmd);
     }
   },
 
@@ -585,6 +613,8 @@ const UI = {
     const inp = $('cmdinput');
     inp.addEventListener('input', () => { this.updateSuggest(); this.updateDyn(); });
     inp.addEventListener('keydown', (ev) => {
+      const pb = inp.value.trimStart().startsWith('(') ? parenBalance(inp.value) : null;
+      if (ev.key === ' ' && pb && (pb.depth > 0 || pb.inString)) return; // typing a LISP expression
       if (ev.key === 'Enter' || (ev.key === ' ' && !(App.req && App.req.kind === 'string'))) {
         ev.preventDefault(); ev.stopPropagation();
         let v = inp.value;
@@ -635,6 +665,7 @@ const UI = {
       if (mod) {
         const k = ev.key.toLowerCase();
         if (k === '1') { ev.preventDefault(); const sd = $('side'); if (sd.hidden || !sd.classList.contains('open') && window.innerWidth <= 760) this.openPanel('props'); else { sd.hidden = true; sd.classList.remove('open'); resize(); } return; }
+        if (k === '3') { ev.preventDefault(); this.openTools(); return; }
         if (k === '9') { ev.preventDefault(); $('cmdline').hidden = !$('cmdline').hidden; return; }
         const map = { z: 'UNDO', y: 'REDO', s: 'SAVE', o: 'OPEN', a: 'SELECTALL', n: 'NEW', p: 'PLOT', c: 'COPYCLIP', v: 'PASTECLIP', x: 'CUTCLIP' };
         if (k === 'z' && ev.shiftKey) { ev.preventDefault(); runCommand('REDO'); return; }

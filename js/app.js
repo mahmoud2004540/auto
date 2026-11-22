@@ -51,6 +51,7 @@ function editable(e) { const l = layerOf(e); return l.on && !l.locked; }
 function addEnt(e) {
   if (!e.layer) e.layer = App.doc.cur;
   if (e.type === 'dim' && e.prec === undefined && App.doc.dimPrec !== undefined && e.kind !== 'ang') e.prec = App.doc.dimPrec;
+  if (e.type === 'dim' && !e.txt && App.doc.dimSuffix && e.kind !== 'ang') e.txt = `<> ${App.doc.dimSuffix}`;
   if (e.id === undefined && !e._keepColor) {
     if (!e.color && App.doc.curColor) e.color = App.doc.curColor;
     if (!e.lt && App.doc.curLt && e.type !== 'hatch') e.lt = App.doc.curLt;
@@ -264,7 +265,7 @@ function render() {
   App.dirty = false;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (App.v3d) { render3D(); return; }
-  ctx.fillStyle = '#212830'; ctx.fillRect(0, 0, CW, CH);
+  ctx.fillStyle = (App.opts && App.opts.bg) || '#212830'; ctx.fillRect(0, 0, CW, CH);
   const paper = App.space !== 'Model';
   if (paper) renderLayout();
   else if (App.modes.grid) drawGrid();
@@ -327,12 +328,18 @@ function render() {
       const p = w2s(g.p);
       const hot = App.hotGrip && V.eq(App.hotGrip.p, g.p) && App.hotGrip.id === e.id;
       ctx.fillStyle = hot ? '#ff3b3b' : '#2f7bff'; ctx.strokeStyle = '#0a1a33'; ctx.lineWidth = 1;
-      ctx.fillRect(p.x - 4, p.y - 4, 8, 8); ctx.strokeRect(p.x - 4.5, p.y - 4.5, 9, 9);
+      const gs = (App.opts && App.opts.grip) || 4; ctx.fillRect(p.x - gs, p.y - gs, gs * 2, gs * 2); ctx.strokeRect(p.x - gs - 0.5, p.y - gs - 0.5, gs * 2 + 1, gs * 2 + 1);
     }
   }
 
-  // selection window
-  if (App.win) {
+  // selection lasso / window
+  if (App.win && App.win.lasso && App.win.lasso.length > 2) {
+    const L = App.win.lasso; let dx = 0; for (let i = 1; i < Math.min(L.length, 6); i++) dx += L[i].x - L[i - 1].x;
+    const crossing = dx < 0;
+    ctx.beginPath(); L.forEach((pt, i) => { const q = w2s(pt); i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }); ctx.closePath();
+    ctx.fillStyle = crossing ? 'rgba(60,200,90,0.15)' : 'rgba(60,120,255,0.15)'; ctx.fill();
+    ctx.strokeStyle = crossing ? '#4cd964' : '#4a8cff'; ctx.lineWidth = 1; if (crossing) ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+  } else if (App.win) {
     const a = w2s(App.win.p1), b = App.scr;
     const crossing = b.x < a.x;
     ctx.fillStyle = crossing ? 'rgba(60,200,90,0.15)' : 'rgba(60,120,255,0.15)';
@@ -361,7 +368,7 @@ function render() {
     const showCross = !App.req || ['point', 'dist', 'angle'].includes(App.req.kind);
     ctx.beginPath();
     if (showCross) {
-      const L = 40;
+      const L = Math.max(CW, CH) * ((App.opts && App.opts.cross) || 5) / 200;
       ctx.moveTo(c.x - L, Math.round(c.y) + 0.5); ctx.lineTo(c.x + L, Math.round(c.y) + 0.5);
       ctx.moveTo(Math.round(c.x) + 0.5, c.y - L); ctx.lineTo(Math.round(c.x) + 0.5, c.y + L);
     }
@@ -487,7 +494,7 @@ function updateEffective() {
 }
 
 function pickEnt(p, filter) {
-  const tol = px(6);
+  const tol = px((App.opts && App.opts.pick) || 6);
   let best = null, bd = Infinity;
   for (let i = App.doc.ents.length - 1; i >= 0; i--) {
     const e = App.doc.ents[i];
@@ -507,7 +514,14 @@ function ask(kind, prompt, opts = {}) {
     UI.setPrompt(prompt, opts.keywords);
     updateEffective(); updatePreview();
     App.dirty = true;
-    if (App.queue && App.queue.length) { const v = App.queue.shift(); setTimeout(() => { if (App.req && App.req.res === res) submitInput(v); }, 0); }
+    if (App.queue && App.queue.length) {
+      if (App.queue[0] && App.queue[0].pause) { App.queue.shift(); return; } // LISP PAUSE: wait for the user
+      setTimeout(() => {
+        if (!(App.req && App.req.res === res)) return;
+        while (App.queue.length && App.queue[0] && App.queue[0].selIds) { App.queue.shift().selIds.forEach(id => App.sel.add(id)); App.dirty = true; }
+        if (App.queue.length) { const v = App.queue.shift(); if (v && v.pause) return; submitInput(v); }
+      }, 0);
+    }
   });
 }
 const getPoint = (prompt, o) => ask('point', prompt, o);
@@ -583,6 +597,11 @@ function parseNum(s) {
 function submitInput(text) {
   const r = App.req;
   const t = text.trim();
+  if (t.startsWith('(') && typeof lispRun === 'function') {
+    if (!r) { if (App.cmd) return; runCommand(async () => { const v = await lispRun(t); UI.log(lispStr(v)); }); return; }
+    lispRun(t).then(v => { if (App.req === r) submitInput(typeof v === 'string' ? v : cmdArg(v)); }).catch(err => UI.log('; error: ' + err.message, 'err'));
+    return;
+  }
   if (!r) {
     if (App.cmd) return; // command busy between prompts
     if (t === '') { if (App.lastCmd) runCommand(App.lastCmd); return; }
@@ -668,7 +687,7 @@ async function runCommand(input, queue) {
     await fn();
   } catch (err) {
     if (err instanceof Cancel) UI.log('*Cancel*');
-    else { console.error(err); UI.log('Error: ' + err.message, 'err'); }
+    else { console.error(err); UI.log((typeof input === 'function' ? '; error: ' : 'Error: ') + err.message, 'err'); }
   } finally {
     App.cmd = null; App.req = null; App.temp = []; App.queue = []; App.acq = []; App.otrack = null; App.snap = null; App.track = null; App.win = null;
     if (App.usedSel) { App.sel.clear(); App.usedSel = false; }
@@ -718,11 +737,11 @@ canvas.addEventListener('pointerdown', (ev) => {
   }
   if (ev.button !== 0) return;
   if (App.v3d) { App.orbit = { x: App.scr.x, y: App.scr.y, yaw: V3.yaw, pitch: V3.pitch }; return; }
-  downInfo = { x: App.scr.x, y: App.scr.y, shift: ev.shiftKey, touch: ev.pointerType === 'touch' };
-  if (ev.pointerType !== 'touch') handlePress(ev.shiftKey);
+  downInfo = { x: App.scr.x, y: App.scr.y, shift: ev.shiftKey, ctrl: ev.ctrlKey || ev.metaKey, touch: ev.pointerType === 'touch' };
+  if (ev.pointerType !== 'touch') handlePress(ev.shiftKey, downInfo.ctrl);
 });
 
-function handlePress(shift) {
+function handlePress(shift, ctrl) {
   updateEffective();
   const r = App.req;
   if (App.win) { finishWindow(App.raw, shift); return; }
@@ -743,6 +762,18 @@ function handlePress(shift) {
       if (V.dist(g.p, App.raw) < tol) { startGrip(e, g); return; }
     }
   }
+  if (ctrl) { // selection cycling through overlapping objects
+    const tol = px(6);
+    const cands = App.doc.ents.filter(x => editable(x) && entDist(x, App.raw) < tol).sort((a, b) => entDist(a, App.raw) - entDist(b, App.raw));
+    if (cands.length) {
+      const key = `${Math.round(App.scr.x / 4)},${Math.round(App.scr.y / 4)}`;
+      if (App.cycle && App.cycle.key === key) { App.sel.delete(App.cycle.id); App.cycle.i = (App.cycle.i + 1) % cands.length; }
+      else App.cycle = { key, i: 0 };
+      App.cycle.id = cands[App.cycle.i].id; App.sel.add(App.cycle.id);
+      UI.log(`Selection cycling: ${App.cycle.i + 1} of ${cands.length} (${Types[cands[App.cycle.i].type].label})`);
+      App.dirty = true; UI.refreshProps(); return;
+    }
+  }
   const e = pickEnt(App.raw);
   if (e) {
     const grp = typeof groupOf === 'function' ? groupOf(e.id) : null;
@@ -754,6 +785,23 @@ function handlePress(shift) {
   App.dirty = true;
 }
 
+function finishLasso(shift) {
+  const poly = App.win.lasso; App.win = null;
+  let dx = 0; for (let i = 1; i < Math.min(poly.length, 6); i++) dx += poly[i].x - poly[i - 1].x;
+  const crossing = dx < 0;
+  const edges = poly.map((p, i) => [p, poly[(i + 1) % poly.length]]);
+  let n = 0;
+  for (const e of App.doc.ents) {
+    if (!editable(e)) continue;
+    const pls = entApprox(e);
+    let hit;
+    if (!crossing) hit = pls.every(pl => pl.every(p => ptInPoly(p, poly)));
+    else hit = pls.some(pl => pl.some(p => ptInPoly(p, poly)) || pl.some((p, i) => i && edges.some(([a, b]) => segSeg(pl[i - 1], p, a, b))));
+    if (hit) { shift ? App.sel.delete(e.id) : App.sel.add(e.id); n++; }
+  }
+  if (App.req && App.req.kind === 'select') UI.log(`${n} found, ${App.sel.size} total`);
+  App.dirty = true; UI.refreshProps();
+}
 function finishWindow(p2, shift) {
   const w = App.win; App.win = null;
   const r = rectNorm(w.p1, p2);
@@ -779,6 +827,11 @@ canvas.addEventListener('pointermove', (ev) => {
   }
   setCursorFromEvent(ev);
   App.over = true;
+  if (downInfo) downInfo.max = Math.max(downInfo.max || 0, Math.hypot(App.scr.x - downInfo.x, App.scr.y - downInfo.y));
+  if (App.win && downInfo && !downInfo.touch && (ev.buttons & 1)) { // press-drag = lasso
+    const L = App.win.lasso || (App.win.lasso = [V.clone(App.win.p1)]);
+    if (V.dist(L[L.length - 1], App.raw) > px(3)) L.push(V.clone(App.raw));
+  }
   if (App.orbit) {
     V3.yaw = App.orbit.yaw + (App.scr.x - App.orbit.x) * 0.008;
     V3.pitch = Math.max(0, Math.min(Math.PI / 2 - 1e-3, App.orbit.pitch - (App.scr.y - App.orbit.y) * 0.008));
@@ -812,11 +865,13 @@ canvas.addEventListener('pointerup', (ev) => {
   if (App.pan) { App.pan = null; App.dirty = true; return; }
   setCursorFromEvent(ev);
   if (ev.button !== 0 || !downInfo) return;
-  const moved = Math.hypot(App.scr.x - downInfo.x, App.scr.y - downInfo.y);
+  const moved = Math.max(downInfo.max || 0, Math.hypot(App.scr.x - downInfo.x, App.scr.y - downInfo.y));
   if (downInfo.touch) {
     if (moved < 10) { onCursorMove(); handlePress(downInfo.shift); }
     else if (App.win) finishWindow(App.raw, downInfo.shift);
-  } else if (App.win && moved > 5) finishWindow(App.raw, downInfo.shift);
+  } else if (App.win && moved > 5) {
+    if (App.win.lasso && App.win.lasso.length > 3) finishLasso(downInfo.shift); else finishWindow(App.raw, downInfo.shift);
+  }
   downInfo = null;
 });
 canvas.addEventListener('pointerleave', () => { App.over = false; App.dirty = true; UI.updateDyn(); });

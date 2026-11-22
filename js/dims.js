@@ -16,7 +16,7 @@ function textAlong(mid, rot, s, h, above = true) {
 // unified geometry: { lines, arcs, arrows, text, value, arrowSize }
 function dimGeom(e) {
   const h = e.h || 2.5;
-  if (!e.kind || e.kind === 'lin') { const g = linDimGeom(e); g.arcs = []; return g; }
+  if (!e.kind || e.kind === 'lin') { const g = linDimGeom(e); g.arcs = []; g.arrowSize = e.asz || App.doc.dimAsz || g.arrowSize; return g; }
   if (e.kind === 'rad' || e.kind === 'dia') {
     const a = V.ang(e.c, e.p3);
     const P = V.polar(e.c, a, e.r), Q = V.polar(e.c, a + Math.PI, e.r);
@@ -33,7 +33,7 @@ function dimGeom(e) {
     const s = dimText(e, value, e.kind === 'rad' ? 'R' : 'Ø');
     const rot = readableRot(a);
     const tmid = out ? V.polar(e.p3, a, textWidth(s, h) / 2 + h * 0.3) : V.mid(e.c, P);
-    return { lines, arcs: [], arrows, text: textAlong(tmid, rot, s, h), value, arrowSize: h };
+    return { lines, arcs: [], arrows, text: textAlong(tmid, rot, s, h), value, arrowSize: e.asz || App.doc.dimAsz || h };
   }
   if (e.kind === 'ang') {
     const a1 = V.ang(e.c, e.p1), a2 = V.ang(e.c, e.p2), aL = V.ang(e.c, e.p3);
@@ -55,7 +55,7 @@ function dimGeom(e) {
     const mid = s1 + span / 2;
     const s = dimText(e, deg(span), '', '°');
     const text = textAlong(V.polar(e.c, mid, rr), readableRot(mid - Math.PI / 2), s, h);
-    return { lines, arcs: [{ c: e.c, r: rr, a1: s1, a2: s2 }], arrows, text, value: deg(span), arrowSize: h };
+    return { lines, arcs: [{ c: e.c, r: rr, a1: s1, a2: s2 }], arrows, text, value: deg(span), arrowSize: e.asz || App.doc.dimAsz || h };
   }
   return { lines: [], arcs: [], arrows: [], text: { p: e.p3 || { x: 0, y: 0 }, h, rot: 0, s: '?' }, value: 0, arrowSize: h };
 }
