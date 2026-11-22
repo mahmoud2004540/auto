@@ -139,6 +139,18 @@ host (e.g. GitHub Pages).
 - OPTIONS (OP): لون الخلفية، حجم المؤشر، حجم الـ Grips والـ Pickbox، زاوية Polar، وحدات الإدراج.
 - التحديد بالسحب = Lasso (يمين = داخل، شمال = تقاطع)، Ctrl+Click للتنقل بين الكائنات المتداخلة.
 
+## واجهات زي أوتوكاد
+- **Start**: تبويب البداية — New / Open / Explore Sample Drawings (رسمة شقة جاهزة) / آخر الملفات بصور مصغّرة.
+- **Layer Properties Manager** (LA): Status, Name, On, Freeze, Lock, Plot, Color, Linetype, Lineweight, Transparency, Description + بحث.
+- **Hatch Creation**: تبويب سياقي بيظهر في الشريط وقت أمر H — معرض الأنماط، المقياس، الزاوية، الطبقة، Close.
+- **Blocks palette** (I): صور مصغّرة لكل بلوكات الرسمة، Scale / Rotation / Repeat Placement / Explode. (`-INSERT` للنسخة النصية)
+- **Plot** (Ctrl+P): Printer (DWG To PDF / PNG)، مقاس الورق، Plot area (Extents / Display / Window / Layout)، Center the plot، Fit to paper أو مقياس، monochrome.ctb / acad.ctb، Portrait / Landscape، **Preview**.
+- **Attributes**: ATTDEF (ATT) بـ dialog، البلوك بيسأل عن القيم عند الإدراج، ودبل كليك يفتح Enhanced Attribute Editor (EATTEDIT). بتتحفظ في DXF.
+
+## الحفظ
+- من جهازك (index.html): الملفات بتتنزّل عادي.
+- من رابط claude.ai: البرنامج بيستخدم خاصية التنزيل الخاصة بالمنصة؛ JSON و PDF و PNG و SVG بتتحفظ مباشرة، و DXF بيتحفظ جوه ملف ZIP (البرنامج نفسه بيفتح ملف الـ ZIP على طول).
+
 ## ملفات DWG
 - **الفتح:** البرنامج بيفتح ملفات DWG من إصدار R14 لحد AutoCAD 2018 وما بعده (اتجرب على R14 و2000 و2004 و2007 و2010 و2013 و2018).
   افتح الملف من OPEN أو اسحبه على الرسم. أول مرة بيتحمّل قارئ DWG (حوالي 11 ميجا) من الإنترنت.

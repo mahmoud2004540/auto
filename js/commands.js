@@ -669,7 +669,7 @@ def('HATCH', ['H', 'BH', 'BHATCH'], 'Fill an enclosed area with a hatch pattern'
       loops = findBoundary(r);
       if (!loops) { UI.log('Valid hatch boundary not found. Make sure the area is fully closed.', 'err'); continue; }
     }
-    addEnt({ type: 'hatch', loops, pat: hs.pat, scale: hs.scale, ang: hs.ang, layer: hatchLayer() });
+    App.lastHatch = addEnt({ type: 'hatch', loops, pat: hs.pat, scale: hs.scale, ang: hs.ang, layer: hatchLayer() });
     made++;
   }
   if (made) UI.log(`${made} hatch object(s) created.`);

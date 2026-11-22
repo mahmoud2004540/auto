@@ -143,3 +143,81 @@ document.addEventListener('click', (ev) => {
   const b = ev.target.closest && ev.target.closest('.modal button');
   if (b) setTimeout(() => { if (b.closest('.modal[hidden]')) b.blur(); }, 0);
 }, true);
+
+// ---------- Layer Properties Manager ----------
+UI.layerManager = function () {
+  let m = document.getElementById('lmModal');
+  if (!m) {
+    m = document.createElement('div'); m.id = 'lmModal'; m.className = 'modal';
+    m.innerHTML = `<div class="dialog lm"><div class="dhead"><b>Layer Properties Manager</b><button id="lmClose">\u2715</button></div>
+      <div class="lmbar"><button class="btn" id="lmNew" title="New Layer (Alt+N)">${icon('layers')} New Layer</button><button class="btn" id="lmDel" title="Delete Layer">${icon('erase')} Delete</button><button class="btn" id="lmCur" title="Set Current">${icon('laymcur')} Set Current</button><span class="muted" id="lmInfo"></span><input id="lmSearch" placeholder="Search for layer"></div>
+      <div class="lmwrap"><table class="lmtable" id="lmTable"></table></div>
+      <div class="lmfoot muted" id="lmFoot"></div></div>`;
+    document.body.appendChild(m);
+    m.addEventListener('keydown', (ev) => { ev.stopPropagation(); if (ev.key === 'Escape') m.hidden = true; });
+    m.querySelector('#lmClose').onclick = () => { m.hidden = true; };
+    m.querySelector('#lmSearch').oninput = () => UI.renderLayerManager();
+    m.querySelector('#lmNew').onclick = () => {
+      let n = 1; while (App.doc.layers.some(l => l.name === 'Layer' + n)) n++;
+      UI.change(() => App.doc.layers.push({ name: 'Layer' + n, color: '#ffffff', on: true, locked: false, lt: 'Continuous', lw: 0.25, plot: true }));
+      UI.lmSel = 'Layer' + n; UI.renderLayerManager();
+      const inp = m.querySelector(`input[data-ln="${CSS.escape('Layer' + n)}"]`); if (inp) { inp.focus(); inp.select(); }
+    };
+    m.querySelector('#lmDel').onclick = () => {
+      const l = App.doc.layers.find(x => x.name === UI.lmSel); if (!l) return;
+      const n = App.doc.ents.filter(e => e.layer === l.name).length;
+      if (l.name === '0' || l.name === App.doc.cur || n) { UI.log(`Layer "${l.name}" cannot be deleted (layer 0, the current layer, or it contains ${n} object(s)).`, 'err'); return; }
+      UI.change(() => { App.doc.layers = App.doc.layers.filter(x => x !== l); }); UI.renderLayerManager();
+    };
+    m.querySelector('#lmCur').onclick = () => { if (UI.lmSel) { UI.change(() => { App.doc.cur = UI.lmSel; }); UI.renderLayerManager(); } };
+  }
+  m.hidden = false; UI.renderLayerManager();
+};
+UI.renderLayerManager = function () {
+  const m = document.getElementById('lmModal'); if (!m) return;
+  const q = m.querySelector('#lmSearch').value.trim().toLowerCase();
+  const counts = {}; App.doc.ents.forEach(e => { counts[e.layer] = (counts[e.layer] || 0) + 1; });
+  const colName = (c) => (COLORS.find(x => x[1] === c) || [c])[0];
+  const rows = App.doc.layers.filter(l => !q || l.name.toLowerCase().includes(q));
+  m.querySelector('#lmTable').innerHTML = `<tr><th>Status</th><th>Name</th><th>On</th><th>Freeze</th><th>Lock</th><th>Plot</th><th>Color</th><th>Linetype</th><th>Lineweight</th><th>Transparency</th><th>Description</th></tr>` +
+    rows.map(l => `<tr class="${l.name === UI.lmSel ? 'sel' : ''}${l.name === App.doc.cur ? ' cur' : ''}" data-l="${esc(l.name)}">
+      <td>${l.name === App.doc.cur ? '<span class="lmcur">\u2714</span>' : (counts[l.name] ? '<span class="lmused" title="In use">\u25b0</span>' : '<span class="muted">\u25b1</span>')}</td>
+      <td><input class="lmname" data-ln="${esc(l.name)}" value="${esc(l.name)}" ${l.name === '0' ? 'readonly' : ''}></td>
+      <td><button data-a="on" title="On / Off">${icon(l.on ? 'bulbOn' : 'bulbOff')}</button></td>
+      <td><button data-a="frz" title="Freeze / Thaw">${l.frozen ? '\u2744' : '<span style="color:#f5c542">\u2600</span>'}</button></td>
+      <td><button data-a="lock" title="Lock / Unlock">${icon(l.locked ? 'lockOn' : 'lockOff')}</button></td>
+      <td><button data-a="plot" title="Plot / No Plot">${l.plot === false ? '<span style="color:#ff6b6b">\ud83d\udeab</span>' : '\ud83d\udda8'}</button></td>
+      <td><label class="lmcol"><input type="color" data-a="color" value="${l.color}"><span class="sw" style="background:${l.color}"></span>${esc(colName(l.color))}</label></td>
+      <td><select data-a="lt">${ltOptions(l.lt || 'Continuous', false)}</select></td>
+      <td><select data-a="lw">${lwOptions(l.lw === undefined ? 0.25 : l.lw, false)}</select></td>
+      <td><input type="number" min="0" max="90" step="10" data-a="tr" value="${l.tr || 0}" style="width:56px"></td>
+      <td><input data-a="desc" value="${esc(l.desc || '')}"></td></tr>`).join('');
+  m.querySelector('#lmInfo').textContent = `Current layer: ${App.doc.cur}`;
+  m.querySelector('#lmFoot').textContent = `All: ${rows.length} layers displayed of ${App.doc.layers.length} total layers`;
+  m.querySelectorAll('#lmTable tr[data-l]').forEach(tr => {
+    const l = App.doc.layers.find(x => x.name === tr.dataset.l);
+    tr.onclick = (ev) => { if (!ev.target.closest('button,input,select,label')) { UI.lmSel = l.name; UI.renderLayerManager(); } };
+    tr.ondblclick = (ev) => { if (!ev.target.closest('button,input,select,label')) { UI.change(() => { App.doc.cur = l.name; l.on = true; l.frozen = false; }); UI.renderLayerManager(); } };
+    tr.querySelectorAll('[data-a]').forEach(el => {
+      const a = el.dataset.a;
+      const set = (fn) => { UI.lmSel = l.name; UI.change(fn); UI.renderLayerManager(); };
+      if (el.tagName === 'BUTTON') el.onclick = () => set(() => {
+        if (a === 'on') l.on = !l.on;
+        if (a === 'frz') { if (l.name === App.doc.cur) { UI.log('Cannot freeze the current layer.', 'err'); return; } l.frozen = !l.frozen; }
+        if (a === 'lock') l.locked = !l.locked;
+        if (a === 'plot') l.plot = l.plot === false;
+      });
+      else el.onchange = () => set(() => {
+        if (a === 'color') l.color = el.value;
+        if (a === 'lt') l.lt = el.value;
+        if (a === 'lw') l.lw = parseFloat(el.value);
+        if (a === 'tr') l.tr = Math.max(0, Math.min(90, parseInt(el.value, 10) || 0));
+        if (a === 'desc') l.desc = el.value;
+      });
+    });
+    const ni = tr.querySelector('.lmname');
+    ni.onchange = () => { UI.renameLayer(l, ni.value.trim()); UI.lmSel = l.name; UI.renderLayerManager(); };
+    ni.onkeydown = (ev) => { if (ev.key === 'Enter') ni.blur(); };
+  });
+};
+Commands.LAYER.fn = async () => { UI.layerManager(); };

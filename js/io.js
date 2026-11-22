@@ -21,8 +21,59 @@ function aciToHex(n) {
   return '#ffffff';
 }
 
-function download(name, data, mime) {
+// ZIP (store, no compression) for file types the viewer cannot save directly
+function crc32(u8) {
+  let c, crc = 0xFFFFFFFF;
+  const T = crc32.T || (crc32.T = Array.from({ length: 256 }, (_, n) => { c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; }));
+  for (let i = 0; i < u8.length; i++) crc = T[(crc ^ u8[i]) & 255] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+function makeZip(files) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let off = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), data = f.data, crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(8, 0, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(h.buffer), name, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    central.push(new Uint8Array(c.buffer), name);
+    off += 30 + name.length + data.length;
+  }
+  const csize = central.reduce((s, a) => s + a.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: 'application/zip' });
+}
+
+const SAVE_EXT = ['gif', 'png', 'jpg', 'jpeg', 'webp', 'txt', 'json', 'md', 'csv', 'html', 'svg', 'pdf', 'zip'];
+let _dlCap;
+async function download(name, data, mime) {
   const blob = data instanceof Blob ? data : new Blob([data], { type: mime });
+  // inside the claude.ai viewer: use the platform's download capability
+  if (window.claude && typeof window.claude.use === 'function') {
+    if (_dlCap === undefined) { try { _dlCap = await window.claude.use('downloads'); } catch (_) { _dlCap = null; } }
+    if (_dlCap) {
+      let fname = name, payload = blob;
+      const ext = (name.split('.').pop() || '').toLowerCase();
+      if (!SAVE_EXT.includes(ext)) {
+        payload = makeZip([{ name, data: new Uint8Array(await blob.arrayBuffer()) }]);
+        fname = name.replace(/\.[^.]+$/, '') + '.zip';
+        UI.log(`${name} is packed inside ${fname} (unzip it to get the file).`, 'info');
+      }
+      try { await _dlCap.save({ filename: fname, data: payload }); UI.log(`Saved ${fname}`, 'info'); }
+      catch (err) {
+        const code = err && err.code;
+        if (code === 'declined') UI.log('Save cancelled.');
+        else if (code === 'rate_limited') UI.log('Another save is waiting for your answer; try again in a moment.', 'err');
+        else UI.log(`Saving is not available here (${code || 'unavailable'}). Open index.html from your computer to save files.`, 'err');
+      }
+      return;
+    }
+  }
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
@@ -32,7 +83,7 @@ function download(name, data, mime) {
 function exportables(keepInserts) {
   const out = [];
   for (const e of App.doc.ents) {
-    if (!visible(e)) continue;
+    if (!visible(e) || (!keepInserts && layerOf(e).plot === false)) continue;
     if (e.type === 'insert' && keepInserts) out.push(e);
     else flattenEnt(e, out);
   }
@@ -60,7 +111,7 @@ const IO = {
 
   open() {
     const inp = document.createElement('input');
-    inp.type = 'file'; inp.accept = '.dwg,.dxf,.json';
+    inp.type = 'file'; inp.accept = '.dwg,.dxf,.json,.zip';
     inp.onchange = () => { const f = inp.files[0]; if (f) IO.loadFile(f); };
     inp.click();
   },
@@ -92,7 +143,31 @@ const IO = {
     }
   },
 
+  async unzipFirst(buf) {
+    const u8 = new Uint8Array(buf), dv = new DataView(buf);
+    let i = 0;
+    while (i + 30 <= u8.length && dv.getUint32(i, true) === 0x04034b50) {
+      const method = dv.getUint16(i + 8, true), csize = dv.getUint32(i + 18, true), nlen = dv.getUint16(i + 26, true), xlen = dv.getUint16(i + 28, true);
+      const name = new TextDecoder().decode(u8.subarray(i + 30, i + 30 + nlen));
+      const start = i + 30 + nlen + xlen, data = u8.subarray(start, start + csize);
+      if (/\.(dxf|dwg|json)$/i.test(name)) {
+        if (method === 0) return { name, data: data.slice() };
+        if (method === 8 && typeof DecompressionStream !== 'undefined') {
+          const out = await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+          return { name, data: new Uint8Array(out) };
+        }
+        throw new Error('Unsupported compression in ZIP');
+      }
+      i = start + csize;
+    }
+    throw new Error('No DWG, DXF or JSON drawing found inside the ZIP file');
+  },
+
   loadFile(f) {
+    if (/\.zip$/i.test(f.name)) {
+      f.arrayBuffer().then(b => IO.unzipFirst(b)).then(({ name, data }) => IO.loadFile(new File([data], name))).catch(err => UI.log('Could not open file: ' + err.message, 'err'));
+      return;
+    }
     if (/\.dwg$/i.test(f.name)) {
       const rb = new FileReader();
       rb.onload = async () => {
@@ -190,13 +265,25 @@ const IO = {
         w(0, 'SEQEND'); w(8, e.layer || '0');
       } else if (e.type === 'point') { head('POINT'); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); }
       else if (e.type === 'xline' || e.type === 'ray') { const [a, b] = [e.type === 'ray' ? e.p : V.sub(e.p, V.mul(e.d, 1e4)), V.add(e.p, V.mul(e.d, 1e4))]; head('LINE'); w(10, num(a.x)); w(20, num(a.y)); w(30, 0); w(11, num(b.x)); w(21, num(b.y)); w(31, 0); }
-      else if (e.type === 'insert') { head('INSERT'); w(2, e.name); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(41, num(e.sx || 1)); w(42, num(e.sy || 1)); w(43, 1); w(50, num(deg(normAng(e.rot || 0)))); }
+      else if (e.type === 'attdef') { head('ATTDEF'); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(40, num(e.h)); w(1, e.def || ''); w(3, e.prompt || e.tag); w(2, e.tag); w(70, (e.invisible ? 1 : 0) | (e.constant ? 2 : 0)); w(50, num(deg(normAng(e.rot || 0)))); }
+      else if (e.type === 'insert') {
+        const defs = blockAttdefs(e.name);
+        head('INSERT'); if (defs.length) w(66, 1); w(2, e.name); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(41, num(e.sx || 1)); w(42, num(e.sy || 1)); w(43, 1); w(50, num(deg(normAng(e.rot || 0))));
+        if (defs.length) {
+          const m = insertMatrix(e, App.doc.blocks[e.name]), k = Math.sqrt(Math.abs(M.det(m)));
+          for (const d of defs) {
+            const q = M.apply(m, d.p); const v = (e.attrs && e.attrs[d.tag]) ?? d.def ?? '';
+            w(0, 'ATTRIB'); w(8, e.layer || '0'); w(10, num(q.x)); w(20, num(q.y)); w(30, 0); w(40, num(d.h * k)); w(1, v); w(2, d.tag); w(70, (d.invisible ? 1 : 0) | (d.constant ? 2 : 0)); w(50, num(deg(normAng((d.rot || 0) + (e.rot || 0)))));
+          }
+          w(0, 'SEQEND'); w(8, e.layer || '0');
+        }
+      }
       else if (e.type === 'text') { head('TEXT'); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(40, num(e.h)); w(1, e.s); w(50, num(deg(normAng(e.rot || 0)))); }
     };
     w(0, 'SECTION'); w(2, 'BLOCKS');
     for (const [bn, bd] of Object.entries(App.doc.blocks || {})) {
       w(0, 'BLOCK'); w(8, '0'); w(2, bn); w(70, 0); w(10, num(bd.base.x)); w(20, num(bd.base.y)); w(30, 0); w(3, bn);
-      for (const be of bd.ents) { if (be.type === 'insert') writeEnt(be); else { const f = []; flattenEnt(be, f); f.forEach(writeEnt); } }
+      for (const be of bd.ents) { if (be.type === 'insert' || be.type === 'attdef') writeEnt(be); else { const f = []; flattenEnt(be, f); f.forEach(writeEnt); } }
       w(0, 'ENDBLK'); w(8, '0');
     }
     w(0, 'ENDSEC');
@@ -297,6 +384,12 @@ const IO = {
             while (k + 1 < recs.length && recs[k + 1].type === 'VERTEX') { k++; const vr = recs[k]; pts.push({ x: getN(vr, 10), y: getN(vr, 20) }); bul.push(getN(vr, 42)); }
             if (k + 1 < recs.length && recs[k + 1].type === 'SEQEND') k++;
             if (pts.length > 1) sink.push({ ...base, type: 'pline', pts: bulgePts(pts, bul, closed), closed });
+            break;
+          }
+          case 'ATTDEF': {
+            const tag = String(get(r, 2, '')).trim().toUpperCase(); if (!tag) break;
+            const fl = parseInt(get(r, 70, '0'), 10) || 0;
+            sink.push({ ...base, type: 'attdef', p: { x: getN(r, 10), y: getN(r, 20) }, h: getN(r, 40, 2.5) || 2.5, rot: rad(getN(r, 50)), tag, prompt: get(r, 3, ''), def: acText(get(r, 1, '')), invisible: !!(fl & 1), constant: !!(fl & 2) });
             break;
           }
           case 'TEXT': case 'ATTRIB': {
@@ -456,7 +549,17 @@ const IO = {
               doc.blocks[bname].ents = sub;
             }
             if (r.type !== 'INSERT') sink.push({ ...base, type: 'insert', name: bname, p: { x: b.base.x, y: b.base.y }, sx: 1, sy: 1, rot: 0 });
-            else sink.push({ ...base, type: 'insert', name: bname, p: { x: getN(r, 10), y: getN(r, 20) }, sx: getN(r, 41, 1) || 1, sy: getN(r, 42, 1) || 1, rot: rad(getN(r, 50)) });
+            else {
+              const ins = { ...base, type: 'insert', name: bname, p: { x: getN(r, 10), y: getN(r, 20) }, sx: getN(r, 41, 1) || 1, sy: getN(r, 42, 1) || 1, rot: rad(getN(r, 50)) };
+              const tags = new Set(doc.blocks[bname].ents.filter(x => x.type === 'attdef').map(x => x.tag));
+              while (k + 1 < recs.length && recs[k + 1].type === 'ATTRIB') {
+                const a = recs[++k], tag = String(get(a, 2, '')).trim().toUpperCase(), val = acText(get(a, 1, ''));
+                if (tags.has(tag)) (ins.attrs = ins.attrs || {})[tag] = val;
+                else if (val) sink.push({ ...base, type: 'text', p: { x: getN(a, 10), y: getN(a, 20) }, h: getN(a, 40, 2.5) || 2.5, rot: rad(getN(a, 50)), s: val });
+              }
+              if (k + 1 < recs.length && recs[k + 1].type === 'SEQEND') k++;
+              sink.push(ins);
+            }
             break;
           }
           default: break;

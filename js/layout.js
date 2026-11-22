@@ -177,32 +177,35 @@ function buildPDF(Wmm, Hmm, draw) {
   return new Blob([bytes], { type: 'application/pdf' });
 }
 
-function plotLayoutPDF(L) {
+// draw the model into a PDF page: toPaper maps model → paper mm, k = paper mm per model unit
+function drawEntsPDF(P, toPaper, k, o = {}) {
+  const flat = [];
+  App.doc.ents.forEach(e => { if (visible(e) && layerOf(e).plot !== false && !(o.skipInfinite && INFINITE.has(e.type))) flattenEnt(e, flat); });
+  const sorted = flat.filter(e => e.type === 'hatch').concat(flat.filter(e => e.type !== 'hatch'));
+  for (const e of sorted) {
+    let c = entColor(e); if (o.mono || c.toLowerCase() === '#ffffff') c = '#000000';
+    P.stroke(c); P.fill(c);
+    P.width(o.noLw ? 0.18 : Math.max(0.1, entLw(e) || 0.1));
+    if (e.type === 'text') { P.text(toPaper(e.p), e.h * k, e.rot || 0, e.s); continue; }
+    if (e.type === 'hatch') {
+      const hp = HATCH_PATTERNS[e.pat] || HATCH_PATTERNS.ANSI31;
+      P.dash(null);
+      if (!hp.fam.length) P.fillLoops(e.loops.map(l => l.map(toPaper)));
+      else { P.width(0.13); for (const [a, b] of hatchLines(e)) P.poly([toPaper(a), toPaper(b)], false); }
+      continue;
+    }
+    const pat = (LTYPES[entLt(e)] || LTYPES.Continuous).pat;
+    P.dash(pat.length ? pat.map(v => Math.abs(v) * (App.doc.ltscale || 1) * (e.lts || 1) * k) : null);
+    for (const pl of entApprox(e)) P.poly(pl.map(toPaper), false);
+  }
+}
+
+function plotLayoutPDF(L, o = {}) {
   const G = layoutGeom(L);
   const blob = buildPDF(G.W, G.H, (P) => {
-    // model geometry clipped to viewport
     P.clip(G.vp);
-    const flat = [];
-    App.doc.ents.forEach(e => { if (visible(e)) flattenEnt(e, flat); });
-    const sorted = flat.filter(e => e.type === 'hatch').concat(flat.filter(e => e.type !== 'hatch'));
-    for (const e of sorted) {
-      let c = entColor(e); if (c.toLowerCase() === '#ffffff') c = '#000000';
-      P.stroke(c); P.fill(c);
-      P.width(Math.max(0.1, entLw(e) || 0.1));
-      if (e.type === 'text') { P.text(G.toPaper(e.p), e.h * G.k, e.rot || 0, e.s); continue; }
-      if (e.type === 'hatch') {
-        const hp = HATCH_PATTERNS[e.pat] || HATCH_PATTERNS.ANSI31;
-        P.dash(null);
-        if (!hp.fam.length) P.fillLoops(e.loops.map(l => l.map(G.toPaper)));
-        else { P.width(0.13); for (const [a, b] of hatchLines(e)) P.poly([G.toPaper(a), G.toPaper(b)], false); }
-        continue;
-      }
-      const pat = (LTYPES[entLt(e)] || LTYPES.Continuous).pat;
-      P.dash(pat.length ? pat.map(v => Math.abs(v) * (App.doc.ltscale || 1) * (e.lts || 1) * G.k) : null);
-      for (const pl of entApprox(e)) P.poly(pl.map(G.toPaper), false);
-    }
+    drawEntsPDF(P, G.toPaper, G.k, o);
     P.unclip();
-    // sheet
     P.dash(null); P.stroke('#000000'); P.fill('#000000'); P.width(0.5);
     for (const [a, b] of G.lines) P.poly([a, b], false);
     P.width(0.18);

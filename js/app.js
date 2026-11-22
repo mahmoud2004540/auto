@@ -46,8 +46,8 @@ App.doc = newDoc();
 // ---------- document helpers ----------
 function layerOf(e) { return App.doc.layers.find(l => l.name === e.layer) || App.doc.layers[0]; }
 function entColor(e) { return e.color || layerOf(e).color; }
-function visible(e) { return layerOf(e).on; }
-function editable(e) { const l = layerOf(e); return l.on && !l.locked; }
+function visible(e) { const l = layerOf(e); return l.on && !l.frozen; }
+function editable(e) { const l = layerOf(e); return l.on && !l.frozen && !l.locked; }
 function addEnt(e) {
   if (!e.layer) e.layer = App.doc.cur;
   if (e.type === 'dim' && e.prec === undefined && App.doc.dimPrec !== undefined && e.kind !== 'ang') e.prec = App.doc.dimPrec;
@@ -282,6 +282,7 @@ function render() {
     const hovered = inSelectMode && App.hover === e.id;
     ctx.strokeStyle = c; ctx.fillStyle = c;
     ctx.lineWidth = 1;
+    const L0 = layerOf(e); ctx.globalAlpha = Math.max(0.1, 1 - (L0.tr || 0) / 100) * (L0.locked ? 0.5 : 1);
     applyEntStyle(ctx, e, App.view.s, lwPx);
     if (hovered) ctx.lineWidth = Math.max(ctx.lineWidth, 2.5);
     if (selected) {
@@ -290,7 +291,7 @@ function render() {
       ctx.setLineDash([6, 4]);
     }
     Types[e.type].draw(R, e);
-    ctx.setLineDash([]);
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
   }
 
   if (!paper) drawConstraints(ctx);
@@ -888,6 +889,8 @@ canvas.addEventListener('dblclick', (ev) => {
   setCursorFromEvent(ev);
   const e = pickEnt(App.raw);
   if (e && ['text', 'mtext', 'table'].includes(e.type)) { const at = V.clone(App.raw); App.sel.clear(); runCommand(() => editEntityText(e, at)); }
+  else if (e && e.type === 'insert' && blockAttdefs(e.name).length) { App.sel.clear(); editAttributes(e); }
+  else if (e && e.type === 'hatch') { App.sel.clear(); App.sel.add(e.id); UI.openPanel('props'); UI.refreshProps(); }
 });
 
 // ---------- grip editing ----------

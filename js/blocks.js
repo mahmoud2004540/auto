@@ -23,8 +23,12 @@ function insertEnts(e) {
   try {
     const m = insertMatrix(e, def);
     const nonUniform = Math.abs(Math.abs(e.sx || 1) - Math.abs(e.sy || 1)) > 1e-9;
-    out = def.ents.map(x => {
+    out = def.ents.filter(x => !(x.type === 'attdef' && x.invisible)).map(x => {
       let c = entClone(x);
+      if (c.type === 'attdef') {
+        const v = e.attrs && e.attrs[c.tag] !== undefined ? e.attrs[c.tag] : c.def;
+        c = { type: 'text', p: c.p, h: c.h, rot: c.rot || 0, s: String(v ?? ''), layer: c.layer, color: c.color };
+      }
       if (nonUniform && (c.type === 'circle' || c.type === 'arc')) c = { type: 'pline', pts: entApprox(x)[0].map(V.clone), closed: c.type === 'circle', layer: c.layer, color: c.color, lt: c.lt, lw: c.lw };
       return entTransform(c, m);
     });
@@ -88,10 +92,85 @@ function flattenEnt(e, out, depth = 0) {
     }
   } else if (['dim', 'leader', 'mtext', 'table', 'spline'].includes(e.type)) {
     for (const p of Types[e.type].explode(e)) { p.layer = e.layer; if (e.color) p.color = e.color; out.push(p); }
-  } else out.push(e);
+  } else if (e.type === 'attdef') out.push({ type: 'text', p: e.p, h: e.h, rot: e.rot || 0, s: e.tag, layer: e.layer, color: e.color });
+  else out.push(e);
 }
 
 // ---------- commands ----------
+// ---------- attribute definitions ----------
+Types.attdef = {
+  label: 'Attribute Definition',
+  approx: (e) => [textBox({ p: e.p, h: e.h, rot: e.rot || 0, s: e.tag })],
+  snaps: (e) => [{ p: e.p, t: 'ins' }],
+  grips: (e) => [{ p: e.p, set: (x, p) => { x.p = p; } }],
+  transform: (e, m) => Types.text.transform(e, m),
+  draw: (R, e) => R.text(e.p, e.h, e.rot || 0, e.tag),
+  props: (e) => [
+    { k: 'Tag', v: e.tag, str: true, set: (x, v) => { x.tag = v.toUpperCase().replace(/\s+/g, '_'); } },
+    { k: 'Prompt', v: e.prompt || '', str: true, set: (x, v) => { x.prompt = v; } },
+    { k: 'Default', v: e.def || '', str: true, set: (x, v) => { x.def = v; } },
+    { k: 'Height', v: e.h, set: (x, v) => { const n = parseFloat(v); if (n > 0) x.h = n; } },
+  ],
+  explode: () => null,
+};
+function blockAttdefs(name) { const b = App.doc.blocks && App.doc.blocks[name]; return b ? b.ents.filter(x => x.type === 'attdef') : []; }
+async function askAttributes(name) {
+  const defs = blockAttdefs(name).filter(d => !d.constant);
+  const attrs = {};
+  for (const d of defs) { const v = await getString(`${d.prompt || d.tag} <${d.def || ''}>`); attrs[d.tag] = v === '' ? (d.def || '') : v; }
+  return attrs;
+}
+
+def('ATTDEF', ['ATT', 'DDATTDEF'], 'Define a block attribute', async () => {
+  const o = await new Promise((res) => {
+    UI.dialog('Attribute Definition', `
+      <div class="psgrid">
+        <fieldset><legend>Mode</legend>
+          <label><span>Invisible</span><input type="checkbox" id="ad_inv" style="width:auto"></label>
+          <label><span>Constant</span><input type="checkbox" id="ad_con" style="width:auto"></label>
+        </fieldset>
+        <fieldset><legend>Attribute</legend>
+          <label>Tag <input id="ad_tag" placeholder="ROOM_NO"></label>
+          <label>Prompt <input id="ad_prompt" placeholder="Room number"></label>
+          <label>Default <input id="ad_def"></label>
+        </fieldset>
+        <fieldset class="wide"><legend>Text Settings</legend>
+          <label>Text height <input id="ad_h" value="${fmt(App.doc.textH)}"></label>
+          <label>Rotation <input id="ad_rot" value="0"></label>
+        </fieldset>
+      </div><p class="muted">After OK, pick the insertion point in the drawing.</p>`, () => {
+      const tag = document.getElementById('ad_tag').value.trim().toUpperCase().replace(/\s+/g, '_');
+      if (!tag) { UI.log('Tag is required.', 'err'); return false; }
+      res({ tag, prompt: document.getElementById('ad_prompt').value, def: document.getElementById('ad_def').value, h: parseFloat(document.getElementById('ad_h').value) || App.doc.textH, rot: rad(parseFloat(document.getElementById('ad_rot').value) || 0), invisible: document.getElementById('ad_inv').checked, constant: document.getElementById('ad_con').checked });
+    });
+    const c = document.getElementById('dlgCancel'), x = document.getElementById('dlgClose');
+    const cancel = () => res(null); c.addEventListener('click', cancel); x.addEventListener('click', cancel);
+  });
+  if (!o) return;
+  const p = await getPoint('Specify start point', { rubber: false, preview: (q) => [{ type: 'attdef', p: q, ...o, layer: App.doc.cur }] });
+  if (!isPt(p)) return;
+  addEnt({ type: 'attdef', p, ...o });
+});
+
+async function editAttributes(ins) {
+  const defs = blockAttdefs(ins.name);
+  if (!defs.length) { UI.log('This block has no attributes.', 'err'); return; }
+  await new Promise((res) => {
+    UI.dialog(`Enhanced Attribute Editor — Block: ${ins.name}`, `
+      <table class="ptable"><tr><td><b>Tag</b></td><td><b>Value</b></td></tr>
+      ${defs.map((d, i) => `<tr><td>${esc(d.tag)}<div class="muted" style="font-size:10px">${esc(d.prompt || '')}</div></td><td><input id="ae_${i}" value="${esc((ins.attrs && ins.attrs[d.tag]) ?? d.def ?? '')}" ${d.constant ? 'disabled' : ''}></td></tr>`).join('')}
+      </table>`, () => {
+      UI.change(() => { ins.attrs = ins.attrs || {}; defs.forEach((d, i) => { if (!d.constant) ins.attrs[d.tag] = document.getElementById('ae_' + i).value; }); invalidate(ins); });
+      res();
+    }, 'Apply');
+    const done = () => res(); document.getElementById('dlgCancel').addEventListener('click', done); document.getElementById('dlgClose').addEventListener('click', done);
+  });
+}
+def('EATTEDIT', ['ATTEDIT', 'ATE'], 'Edit block attribute values', async () => {
+  const pk = await getEntity('Select a block', { filter: e => e.type === 'insert' });
+  if (pk && typeof pk === 'object') await editAttributes(pk.e);
+}, { noUndo: true });
+
 def('BLOCK', ['B', 'BMAKE'], 'Create a block definition from selected objects', async () => {
   const name = (await getString('Enter block name')).trim();
   if (!name) return;
@@ -108,7 +187,9 @@ def('BLOCK', ['B', 'BMAKE'], 'Create a block definition from selected objects', 
   removeEnts(s);
   // refresh existing references to a redefined block
   App.doc.ents.forEach(e => { if (e.type === 'insert' && e.name === name) { _insCache.delete(e); invalidate(e); } });
-  addEnt({ type: 'insert', name, p: V.clone(base), sx: 1, sy: 1, rot: 0 });
+  const attrs = {};
+  for (const d of s.filter(e => e.type === 'attdef')) attrs[d.tag] = d.def || '';
+  addEnt({ type: 'insert', name, p: V.clone(base), sx: 1, sy: 1, rot: 0, attrs });
   UI.log(`Block "${name}" created with ${s.length} object(s).`, 'info');
 });
 
@@ -127,7 +208,8 @@ def('INSERT', ['I', 'DDINSERT', 'CLASSICINSERT'], 'Insert a block', async () => 
     if (p === 'Scale') { const v = await getDist('Specify scale factor <1>', { def: 1 }); if (typeof v === 'number' && v) sc = v; continue; }
     if (p === 'Rotate') { const v = await getAngle('Specify rotation angle <0>', { def: 0 }); if (typeof v === 'number') ro = v; continue; }
     if (!isPt(p)) return;
-    addEnt({ type: 'insert', name, p, sx: sc, sy: sc, rot: ro });
+    const attrs = await askAttributes(name);
+    addEnt({ type: 'insert', name, p, sx: sc, sy: sc, rot: ro, attrs });
     return;
   }
 });
