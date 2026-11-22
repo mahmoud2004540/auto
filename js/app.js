@@ -14,7 +14,7 @@ const App = {
   over: false,
   snap: null,                // current osnap {p,t}
   track: null,               // polar track {base, ang}
-  modes: { grid: true, snap: false, ortho: false, polar: true, osnap: true, dyn: true },
+  modes: { grid: true, snap: false, ortho: false, polar: true, osnap: true, dyn: true, lwt: false },
   osnaps: { end: true, mid: true, cen: true, quad: true, int: true, perp: true, ins: true, node: true, near: false },
   gridSize: 10, snapSize: 10, polarInc: 45,
   temp: [],
@@ -30,11 +30,13 @@ function newDoc() {
   return {
     ents: [],
     layers: [
-      { name: '0', color: '#ffffff', on: true, locked: false },
-      { name: 'Dimensions', color: '#00ffff', on: true, locked: false },
-      { name: 'Hidden', color: '#ffff00', on: true, locked: false },
+      { name: '0', color: '#ffffff', on: true, locked: false, lt: 'Continuous', lw: 0.25 },
+      { name: 'Dimensions', color: '#00ffff', on: true, locked: false, lt: 'Continuous', lw: 0.18 },
+      { name: 'Hidden', color: '#ffff00', on: true, locked: false, lt: 'Hidden', lw: 0.25 },
+      { name: 'Center', color: '#ff0000', on: true, locked: false, lt: 'Center', lw: 0.18 },
+      { name: 'Hatch', color: '#808080', on: true, locked: false, lt: 'Continuous', lw: 0.13 },
     ],
-    cur: '0', nextId: 1, textH: 2.5, dimH: 2.5,
+    cur: '0', nextId: 1, textH: 2.5, dimH: 2.5, ltscale: 1,
   };
 }
 App.doc = newDoc();
@@ -46,7 +48,11 @@ function visible(e) { return layerOf(e).on; }
 function editable(e) { const l = layerOf(e); return l.on && !l.locked; }
 function addEnt(e) {
   if (!e.layer) e.layer = App.doc.cur;
-  if (!e.color && App.doc.curColor && !e._keepColor && e.id === undefined) e.color = App.doc.curColor;
+  if (e.id === undefined && !e._keepColor) {
+    if (!e.color && App.doc.curColor) e.color = App.doc.curColor;
+    if (!e.lt && App.doc.curLt && e.type !== 'hatch') e.lt = App.doc.curLt;
+    if (e.lw === undefined && App.doc.curLw !== undefined) e.lw = App.doc.curLw;
+  }
   delete e._keepColor;
   e.id = App.doc.nextId++;
   App.doc.ents.push(e);
@@ -142,6 +148,35 @@ function makeR(g = ctx) {
       let span = normAng(a2 - a1); if (span < 1e-9) span = TAU;
       g.arc(p.x, p.y, Math.max(0, r * App.view.s), -a1, -(a1 + span), true); g.stroke();
     },
+    hatch(e) {
+      g.beginPath();
+      for (const l of e.loops) { l.forEach((pt, i) => { const p = w2s(pt); i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y); }); g.closePath(); }
+      const pat = HATCH_PATTERNS[e.pat] || HATCH_PATTERNS.ANSI31;
+      if (!pat.fam.length) { g.fill('evenodd'); return; }
+      g.save(); g.clip('evenodd'); g.setLineDash([]);
+      const b = entBBox(e);
+      const corners = [{ x: b.x1, y: b.y1 }, { x: b.x2, y: b.y1 }, { x: b.x2, y: b.y2 }, { x: b.x1, y: b.y2 }];
+      let dense = false;
+      g.beginPath();
+      for (const f of pat.fam) {
+        const th = rad(f.a) + (e.ang || 0);
+        const d = { x: Math.cos(th), y: Math.sin(th) }, n = V.perp(d);
+        const sp = f.s * (e.scale || 1), off = (f.o || 0) * (e.scale || 1);
+        if (sp * App.view.s < 2.5) { dense = true; continue; }
+        const pn = corners.map(c => V.dot(c, n)), pd = corners.map(c => V.dot(c, d));
+        const k0 = Math.floor((Math.min(...pn) - off) / sp), k1 = Math.ceil((Math.max(...pn) - off) / sp);
+        if (k1 - k0 > 6000) { dense = true; continue; }
+        const t0 = Math.min(...pd), t1 = Math.max(...pd);
+        for (let k = k0; k <= k1; k++) {
+          const o = V.mul(n, k * sp + off);
+          const A = w2s(V.add(o, V.mul(d, t0))), B = w2s(V.add(o, V.mul(d, t1)));
+          g.moveTo(A.x, A.y); g.lineTo(B.x, B.y);
+        }
+      }
+      g.stroke();
+      if (dense) { g.globalAlpha = 0.35; const p1 = w2s({ x: b.x1, y: b.y2 }), p2 = w2s({ x: b.x2, y: b.y1 }); g.fillRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y); }
+      g.restore();
+    },
     text(p, h, rot, s) {
       const sz = h * App.view.s;
       if (sz < 0.8) { const b = textBox({ p, h, rot, s }); this.poly(b, false); return; }
@@ -228,15 +263,19 @@ function render() {
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
   const inSelectMode = !App.req || App.req.kind === 'select' || App.req.kind === 'entity';
-  for (const e of App.doc.ents) {
+  const lwPx = App.modes.lwt ? lwScreenPx : null;
+  const ordered = App.doc.ents.filter(e => e.type === 'hatch').concat(App.doc.ents.filter(e => e.type !== 'hatch'));
+  for (const e of ordered) {
     if (!visible(e)) continue;
     const c = entColor(e);
     const selected = App.sel.has(e.id);
     const hovered = inSelectMode && App.hover === e.id;
     ctx.strokeStyle = c; ctx.fillStyle = c;
-    ctx.lineWidth = hovered ? 2.5 : 1;
+    ctx.lineWidth = 1;
+    applyEntStyle(ctx, e, App.view.s, lwPx);
+    if (hovered) ctx.lineWidth = Math.max(ctx.lineWidth, 2.5);
     if (selected) {
-      ctx.save(); ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(70,150,255,0.35)'; ctx.fillStyle = 'rgba(70,150,255,0.35)';
+      ctx.save(); ctx.setLineDash([]); ctx.lineWidth = ctx.lineWidth + 3; ctx.strokeStyle = 'rgba(70,150,255,0.35)'; ctx.fillStyle = 'rgba(70,150,255,0.35)';
       Types[e.type].draw(R, e); ctx.restore();
       ctx.setLineDash([6, 4]);
     }
@@ -248,6 +287,7 @@ function render() {
   for (const t of App.temp) {
     const c = t.color || (t.layer ? entColor(t) : '#ffffff');
     ctx.strokeStyle = c; ctx.fillStyle = c; ctx.lineWidth = 1;
+    if (t.layer) applyEntStyle(ctx, t, App.view.s, App.modes.lwt ? lwScreenPx : null);
     if (t.dash) ctx.setLineDash([5, 4]);
     Types[t.type].draw(R, t);
     ctx.setLineDash([]);

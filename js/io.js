@@ -89,13 +89,19 @@ const IO = {
     const L = [];
     const w = (c, v) => { L.push(String(c)); L.push(String(v)); };
     const num = (n) => (Math.abs(n) < 1e-12 ? 0 : +n.toFixed(8));
-    w(0, 'SECTION'); w(2, 'HEADER'); w(9, '$ACADVER'); w(1, 'AC1009'); w(9, '$INSUNITS'); w(70, 4); w(0, 'ENDSEC');
+    w(0, 'SECTION'); w(2, 'HEADER'); w(9, '$ACADVER'); w(1, 'AC1009'); w(9, '$INSUNITS'); w(70, 4); w(9, '$LTSCALE'); w(40, App.doc.ltscale || 1); w(0, 'ENDSEC');
     w(0, 'SECTION'); w(2, 'TABLES');
-    w(0, 'TABLE'); w(2, 'LTYPE'); w(70, 1);
-    w(0, 'LTYPE'); w(2, 'CONTINUOUS'); w(70, 0); w(3, 'Solid line'); w(72, 65); w(73, 0); w(40, 0);
+    const ltk = Object.keys(LTYPES);
+    w(0, 'TABLE'); w(2, 'LTYPE'); w(70, ltk.length);
+    for (const k of ltk) {
+      const pat = LTYPES[k].pat;
+      w(0, 'LTYPE'); w(2, k.toUpperCase()); w(70, 0); w(3, LTYPES[k].desc); w(72, 65); w(73, pat.length);
+      w(40, num(pat.reduce((a, b) => a + Math.abs(b), 0)));
+      for (const v of pat) w(49, v);
+    }
     w(0, 'ENDTAB');
     w(0, 'TABLE'); w(2, 'LAYER'); w(70, App.doc.layers.length);
-    for (const l of App.doc.layers) { w(0, 'LAYER'); w(2, l.name); w(70, l.locked ? 4 : 0); w(62, (l.on ? 1 : -1) * hexToAci(l.color)); w(6, 'CONTINUOUS'); }
+    for (const l of App.doc.layers) { w(0, 'LAYER'); w(2, l.name); w(70, l.locked ? 4 : 0); w(62, (l.on ? 1 : -1) * hexToAci(l.color)); w(6, (l.lt || 'Continuous').toUpperCase()); }
     w(0, 'ENDTAB');
     w(0, 'TABLE'); w(2, 'STYLE'); w(70, 1);
     w(0, 'STYLE'); w(2, 'STANDARD'); w(70, 0); w(40, 0); w(41, 1); w(50, 0); w(71, 0); w(42, 2.5); w(3, 'txt'); w(4, '');
@@ -103,7 +109,14 @@ const IO = {
     w(0, 'ENDSEC');
     w(0, 'SECTION'); w(2, 'ENTITIES');
     for (const e of exportables()) {
-      const head = (t) => { w(0, t); w(8, e.layer || '0'); if (e.color) w(62, hexToAci(e.color)); };
+      const head = (t) => { w(0, t); w(8, e.layer || '0'); if (e.lt) w(6, e.lt.toUpperCase()); if (e.color) w(62, hexToAci(e.color)); };
+      if (e.type === 'hatch') {
+        const pat = HATCH_PATTERNS[e.pat] || HATCH_PATTERNS.ANSI31;
+        if (!pat.fam.length) {
+          for (const l of e.loops) { head('POLYLINE'); w(66, 1); w(10, 0); w(20, 0); w(30, 0); w(70, 1); for (const p of l) { w(0, 'VERTEX'); w(8, e.layer || '0'); w(10, num(p.x)); w(20, num(p.y)); w(30, 0); } w(0, 'SEQEND'); w(8, e.layer || '0'); }
+        } else for (const [a, b] of hatchLines(e)) { head('LINE'); w(10, num(a.x)); w(20, num(a.y)); w(30, 0); w(11, num(b.x)); w(21, num(b.y)); w(31, 0); }
+        continue;
+      }
       if (e.type === 'line') { head('LINE'); w(10, num(e.p1.x)); w(20, num(e.p1.y)); w(30, 0); w(11, num(e.p2.x)); w(21, num(e.p2.y)); w(31, 0); }
       else if (e.type === 'circle') { head('CIRCLE'); w(10, num(e.c.x)); w(20, num(e.c.y)); w(30, 0); w(40, num(e.r)); }
       else if (e.type === 'arc') { head('ARC'); w(10, num(e.c.x)); w(20, num(e.c.y)); w(30, 0); w(40, num(e.r)); w(50, num(deg(normAng(e.a1)))); w(51, num(deg(normAng(e.a2)))); }
@@ -145,11 +158,14 @@ const IO = {
     }
     const get = (r, code, d) => { const p = r.g.find(x => x[0] === code); return p ? p[1] : d; };
     const getN = (r, code, d = 0) => { const v = get(r, code); return v === undefined ? d : parseFloat(v); };
+    for (let q = 0; q + 1 < pairs.length; q++) if (pairs[q][0] === 9 && pairs[q][1].trim() === '$LTSCALE') { const v = parseFloat(pairs[q + 1][1]); if (v > 0) doc.ltscale = v; break; }
     // layers
     for (const r of records) if (r.sec === 'TABLES' && r.type === 'LAYER') {
       const n = get(r, 2, '0'); ensureLayer(n);
       const l = layerMap.get(n); const col = parseInt(get(r, 62, '7'), 10);
       l.color = aciToHex(col); l.on = col >= 0; l.locked = (parseInt(get(r, 70, '0'), 10) & 4) !== 0;
+      l.lt = ltName(get(r, 6, 'Continuous')) || 'Continuous';
+      const lw = parseInt(get(r, 370, '-3'), 10); l.lw = lw >= 0 ? lw / 100 : 0.25;
     }
     ensureLayer('0');
 
@@ -179,6 +195,9 @@ const IO = {
         const r = recs[k];
         const base = { layer: ensureLayer(get(r, 8, '0')) };
         const col = get(r, 62); if (col !== undefined && +col !== 256 && +col !== 0) base.color = aciToHex(+col);
+        const elt = ltName(get(r, 6)); if (elt) base.lt = elt;
+        const elw = parseInt(get(r, 370, '-1'), 10); if (elw >= 0) base.lw = elw / 100;
+        const els = getN(r, 48, 1); if (els !== 1 && els > 0) base.lts = els;
         switch (r.type) {
           case 'LINE': sink.push({ ...base, type: 'line', p1: { x: getN(r, 10), y: getN(r, 20) }, p2: { x: getN(r, 11), y: getN(r, 21) } }); break;
           case 'CIRCLE': sink.push({ ...base, type: 'circle', c: { x: getN(r, 10), y: getN(r, 20) }, r: getN(r, 40) }); break;
@@ -241,6 +260,57 @@ const IO = {
             if (pts.length > 1) sink.push({ ...base, type: 'pline', pts, closed: (parseInt(get(r, 70, '0'), 10) & 1) === 1 });
             break;
           }
+          case 'HATCH': {
+            const loops = []; let cur = null, i = 0; const g = r.g;
+            const name = (get(r, 2, 'ANSI31') || 'ANSI31').toUpperCase();
+            const solid = get(r, 70) === '1' || name === 'SOLID';
+            // walk boundary data: starts after code 91
+            while (i < g.length && g[i][0] !== 91) i++;
+            const nLoops = i < g.length ? parseInt(g[i][1], 10) : 0; i++;
+            for (let L = 0; L < nLoops && i < g.length; L++) {
+              while (i < g.length && g[i][0] !== 92) i++;
+              if (i >= g.length) break;
+              const flag = parseInt(g[i][1], 10); i++;
+              cur = [];
+              if (flag & 2) { // polyline loop
+                let hasB = false; while (i < g.length && g[i][0] !== 93) { if (g[i][0] === 72) hasB = g[i][1].trim() === '1'; i++; }
+                const n = parseInt(g[i][1], 10); i++;
+                const pts = [], bul = [];
+                for (let v = 0; v < n && i < g.length; v++) {
+                  const p = { x: 0, y: 0 }; let bb = 0;
+                  if (g[i][0] === 10) { p.x = parseFloat(g[i][1]); i++; }
+                  if (g[i] && g[i][0] === 20) { p.y = parseFloat(g[i][1]); i++; }
+                  if (hasB && g[i] && g[i][0] === 42) { bb = parseFloat(g[i][1]); i++; }
+                  pts.push(p); bul.push(bb);
+                }
+                cur = bulgePts(pts, bul, true);
+              } else {
+                while (i < g.length && g[i][0] !== 93) i++;
+                const n = parseInt(g[i][1], 10); i++;
+                for (let ed = 0; ed < n && i < g.length; ed++) {
+                  while (i < g.length && g[i][0] !== 72) i++;
+                  const et = parseInt(g[i][1], 10); i++;
+                  const vals = {}; while (i < g.length && ![72, 97, 92, 75].includes(g[i][0])) { if (vals[g[i][0]] === undefined) vals[g[i][0]] = parseFloat(g[i][1]); i++; }
+                  if (et === 1) { cur.push({ x: vals[10], y: vals[20] }); }
+                  else if (et === 2) {
+                    const c = { x: vals[10], y: vals[20] }, rr = vals[40]; let a1 = rad(vals[50]), a2 = rad(vals[51]);
+                    const ccw = vals[73] !== 0; if (!ccw) { a1 = -a1; a2 = -a2; }
+                    let span = a2 - a1; if (ccw && span < 0) span += TAU; if (!ccw && span > 0) span -= TAU;
+                    const segs = Math.max(4, Math.ceil(Math.abs(span) / TAU * 64));
+                    for (let k2 = 0; k2 < segs; k2++) cur.push(V.polar(c, a1 + span * k2 / segs, rr));
+                  } else if (et === 3) {
+                    const c = { x: vals[10], y: vals[20] }, ax = { x: vals[11], y: vals[21] }, ratio = vals[40];
+                    const ra = V.len(ax), rb = ra * ratio, ang = Math.atan2(ax.y, ax.x);
+                    let t1 = rad(vals[50]), t2 = rad(vals[51]); let span = t2 - t1; if (span <= 0) span += TAU;
+                    for (let k2 = 0; k2 < 48; k2++) { const t = t1 + span * k2 / 48, x = Math.cos(t) * ra, y = Math.sin(t) * rb; cur.push({ x: c.x + x * Math.cos(ang) - y * Math.sin(ang), y: c.y + x * Math.sin(ang) + y * Math.cos(ang) }); }
+                  } else if (et === 4 && vals[10] !== undefined) cur.push({ x: vals[10], y: vals[20] });
+                }
+              }
+              if (cur.length > 2 && cur.every(p => isFinite(p.x) && isFinite(p.y))) loops.push(cur);
+            }
+            if (loops.length) sink.push({ ...base, type: 'hatch', loops, pat: solid ? 'SOLID' : (HATCH_PATTERNS[name] ? name : 'ANSI31'), scale: getN(r, 41, 1) || 1, ang: rad(getN(r, 52, 0)) });
+            break;
+          }
           case 'POINT': sink.push({ ...base, type: 'circle', c: { x: getN(r, 10), y: getN(r, 20) }, r: 0.05 }); break;
           case 'INSERT': {
             if (depth > 8) break;
@@ -278,6 +348,7 @@ const IO = {
     doc.ents = ents.filter(e => {
       const ok = (o) => Object.values(o).every(v => typeof v !== 'number' || isFinite(v));
       if (e.type === 'pline') return e.pts.every(ok);
+      if (e.type === 'hatch') return e.loops.every(l => l.every(ok));
       return ok(e) && ['p1', 'p2', 'c', 'p'].every(k => !e[k] || ok(e[k]));
     });
     doc.nextId = ents.length + 1;
@@ -299,14 +370,25 @@ const IO = {
     const out = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${fmt(W, 4)} ${fmt(H, 4)}" width="${Math.round(W * 4)}" height="${Math.round(H * 4)}" style="background:#fff">`,
       `<g fill="none" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">`];
     const esc = (s) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    for (const e of ents) {
+    const sorted = ents.filter(e => e.type === 'hatch').concat(ents.filter(e => e.type !== 'hatch'));
+    const lwOf = (e) => App.modes.lwt ? ` stroke-width="${fmt(Math.max(+sw, entLw(e) * Math.max(W, H) / 400), 5)}"` : '';
+    for (const e of sorted) {
       const c = col(e);
-      if (e.type === 'line') out.push(`<line x1="${T(e.p1).split(',')[0]}" y1="${T(e.p1).split(',')[1]}" x2="${T(e.p2).split(',')[0]}" y2="${T(e.p2).split(',')[1]}" stroke="${c}"/>`);
-      else if (e.type === 'circle') { const [cx, cy] = T(e.c).split(','); out.push(`<circle cx="${cx}" cy="${cy}" r="${fmt(e.r, 4)}" stroke="${c}"/>`); }
+      const pat = e.type === 'text' || e.type === 'hatch' ? [] : (LTYPES[entLt(e)] || LTYPES.Continuous).pat;
+      const da = pat.length ? ` stroke-dasharray="${pat.map(v => fmt(Math.max(Math.abs(v) * (App.doc.ltscale || 1) * (e.lts || 1), 0.001), 4)).join(' ')}"` : '';
+      const st = `${da}${lwOf(e)}`;
+      if (e.type === 'hatch') {
+        const hp = HATCH_PATTERNS[e.pat] || HATCH_PATTERNS.ANSI31;
+        if (!hp.fam.length) out.push(`<path d="${e.loops.map(l => 'M' + l.map(T).join(' L') + ' Z').join(' ')}" fill="${c}" fill-rule="evenodd" stroke="none"/>`);
+        else out.push(`<path d="${hatchLines(e).map(([a, b]) => `M${T(a)} L${T(b)}`).join(' ')}" stroke="${c}"/>`);
+        continue;
+      }
+      if (e.type === 'line') out.push(`<line x1="${T(e.p1).split(',')[0]}" y1="${T(e.p1).split(',')[1]}" x2="${T(e.p2).split(',')[0]}" y2="${T(e.p2).split(',')[1]}" stroke="${c}"${st}/>`);
+      else if (e.type === 'circle') { const [cx, cy] = T(e.c).split(','); out.push(`<circle cx="${cx}" cy="${cy}" r="${fmt(e.r, 4)}" stroke="${c}"${st}/>`); }
       else if (e.type === 'arc') {
         const s = V.polar(e.c, e.a1, e.r), t = V.polar(e.c, e.a2, e.r), span = normAng(e.a2 - e.a1);
-        out.push(`<path d="M${T(s)} A${fmt(e.r, 4)},${fmt(e.r, 4)} 0 ${span > Math.PI ? 1 : 0} 0 ${T(t)}" stroke="${c}"/>`);
-      } else if (e.type === 'pline') out.push(`<${e.closed ? 'polygon' : 'polyline'} points="${e.pts.map(T).join(' ')}" stroke="${c}"/>`);
+        out.push(`<path d="M${T(s)} A${fmt(e.r, 4)},${fmt(e.r, 4)} 0 ${span > Math.PI ? 1 : 0} 0 ${T(t)}" stroke="${c}"${st}/>`);
+      } else if (e.type === 'pline') out.push(`<${e.closed ? 'polygon' : 'polyline'} points="${e.pts.map(T).join(' ')}" stroke="${c}"${st}/>`);
       else if (e.type === 'text') { const [x, y] = T(e.p).split(','); out.push(`<text x="${x}" y="${y}" font-family="Arial" font-size="${fmt(e.h, 4)}" fill="${c}" stroke="none" transform="rotate(${fmt(-deg(e.rot || 0), 3)} ${x} ${y})">${esc(e.s)}</text>`); }
     }
     out.push('</g></svg>');
@@ -330,9 +412,13 @@ const IO = {
     App.view.s = Math.min(W / Math.max(r.x2 - r.x1, 1e-6), Hc / Math.max(r.y2 - r.y1, 1e-6)) * 0.94;
     g.fillStyle = '#fff'; g.fillRect(0, 0, W, Hc); g.lineWidth = 1.5; g.lineCap = 'round';
     const R = makeR(g);
-    for (const e of ents) {
+    const sorted = ents.filter(e => e.type === 'hatch').concat(ents.filter(e => e.type !== 'hatch'));
+    for (const e of sorted) {
       let c = entColor(e); if (c.toLowerCase() === '#ffffff') c = '#000000';
-      g.strokeStyle = c; g.fillStyle = c; Types[e.type].draw(R, e);
+      g.strokeStyle = c; g.fillStyle = c; g.lineWidth = 1.5;
+      applyEntStyle(g, e, App.view.s, App.modes.lwt ? (lw) => Math.max(1.5, lw * 8) : null);
+      Types[e.type].draw(R, e);
+      g.setLineDash([]);
     }
     App.view = saved.view; CW = saved.CW; CH = saved.CH; App.dirty = true;
     off.toBlob(b => { download(App.fileName + '.png', b); UI.log(`Exported ${App.fileName}.png`); });

@@ -46,6 +46,7 @@ const ICONS = {
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
   redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/>',
   props: '<rect x="4" y="3" width="16" height="18"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  hatch: '<rect x="3" y="3" width="18" height="18"/><path d="M3 9 9 3M3 15 15 3M3 21 21 3M9 21l12-12M15 21l6-6"/>',
   paste: '<rect x="5" y="4" width="14" height="17" rx="1"/><path d="M9 4V2h6v2M9 10h6M9 14h6"/>',
   cut: '<circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8 16 18 3M16 16 6 3"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/>',
@@ -55,7 +56,7 @@ const icon = (k) => `<svg class="ic" viewBox="0 0 24 24">${ICONS[k] || ''}</svg>
 const RIBBON = {
   Home: [
     { label: 'Draw', items: [['LINE', 'Line', 'line'], ['PLINE', 'Polyline', 'pline'], ['CIRCLE', 'Circle', 'circle'], ['ARC', 'Arc', 'arc'],
-      { col: [['RECTANG', 'Rectangle', 'rect'], ['POLYGON', 'Polygon', 'polygon'], ['ELLIPSE', 'Ellipse', 'ellipse']] }] },
+      { col: [['RECTANG', 'Rectangle', 'rect'], ['POLYGON', 'Polygon', 'polygon'], ['ELLIPSE', 'Ellipse', 'ellipse']] }, ['HATCH', 'Hatch', 'hatch']] },
     { label: 'Modify', items: [
       { col: [['MOVE', 'Move', 'move'], ['COPY', 'Copy', 'copy'], ['ROTATE', 'Rotate', 'rotate']] },
       { col: [['MIRROR', 'Mirror', 'mirror'], ['SCALE', 'Scale', 'scale'], ['OFFSET', 'Offset', 'offset']] },
@@ -74,6 +75,8 @@ const RIBBON = {
   ],
   Annotate: [
     { label: 'Text', items: [['TEXT', 'Single Line', 'text']] },
+    { label: 'Hatch', items: [['HATCH', 'Hatch', 'hatch']] },
+    { label: 'Linetypes', items: [['LINETYPE', 'Linetypes', 'list'], ['LTSCALE', 'LT Scale', 'scale'], ['LWDISPLAY', 'Show LWT', 'line']] },
     { label: 'Dimensions', items: [['DIMLINEAR', 'Linear', 'dimlin'], ['DIMALIGNED', 'Aligned', 'dimali']] },
     { label: 'Inquiry', items: [['DIST', 'Distance', 'dist'], ['AREA', 'Area', 'area']] },
   ],
@@ -93,6 +96,9 @@ const RIBBON = {
 
 const COLORS = [['ByLayer', ''], ['Red', '#ff0000'], ['Yellow', '#ffff00'], ['Green', '#00ff00'], ['Cyan', '#00ffff'], ['Blue', '#0000ff'], ['Magenta', '#ff00ff'], ['White', '#ffffff'], ['Gray', '#808080'], ['Orange', '#ff7f00']];
 
+const ltOptions = (cur, byLayer) => (byLayer ? `<option value="" ${!cur ? 'selected' : ''}>ByLayer</option>` : '') + Object.keys(LTYPES).map(k => `<option value="${k}" ${cur === k ? 'selected' : ''}>${k}</option>`).join('');
+const lwLabel = (w) => w === 0 ? '0.00 mm' : w.toFixed(2) + ' mm';
+const lwOptions = (cur, byLayer) => (byLayer ? `<option value="" ${cur === undefined ? 'selected' : ''}>ByLayer</option>` : '') + LWEIGHTS.map(w => `<option value="${w}" ${cur === w ? 'selected' : ''}>${lwLabel(w)}</option>`).join('');
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -153,7 +159,7 @@ const UI = {
     $('ribbonPanels').innerHTML = RIBBON[this.tab].map(g => `<div class="rgroup"><div class="items">${g.items.map(it => {
       if (Array.isArray(it)) return btn(it);
       if (it.col) return `<div class="smallcol">${it.col.map(x => btn(x, true)).join('')}</div>`;
-      if (it.colorctl) return `<div class="layerctl"><select id="ribbonColor" title="Color for new objects">${COLORS.map(([n, c]) => `<option value="${c}">${n}</option>`).join('')}</select><select disabled title="Linetype"><option>Continuous — ByLayer</option></select><select disabled title="Lineweight"><option>Default — ByLayer</option></select></div>`;
+      if (it.colorctl) return `<div class="layerctl"><select id="ribbonColor" title="Color for new objects">${COLORS.map(([n, c]) => `<option value="${c}">${n}</option>`).join('')}</select><select id="ribbonLt" title="Linetype for new objects">${ltOptions(App.doc.curLt, true)}</select><select id="ribbonLw" title="Lineweight for new objects">${lwOptions(App.doc.curLw, true)}</select></div>`;
       if (it.layerctl) return `<div class="layerctl"><select id="ribbonLayer" title="Current layer"></select><div class="muted" style="font-size:11px">Current layer</div></div>`;
       return '';
     }).join('')}</div><div class="glabel">${g.label}</div></div>`).join('');
@@ -163,6 +169,9 @@ const UI = {
       this.change(() => { if (s.length) s.forEach(e => { e.layer = v; }); else App.doc.cur = v; });
       rl.blur();
     };
+    const applyProp = (key, val) => { const s = selEnts(); this.change(() => { if (s.length) s.forEach(e => { if (val === undefined) delete e[key]; else e[key] = val; }); else App.doc['cur' + key[0].toUpperCase() + key.slice(1)] = val; }); };
+    const rlt = $('ribbonLt'); if (rlt) rlt.onchange = () => { applyProp('lt', rlt.value || undefined); rlt.blur(); };
+    const rlw = $('ribbonLw'); if (rlw) rlw.onchange = () => { applyProp('lw', rlw.value === '' ? undefined : parseFloat(rlw.value)); rlw.blur(); };
     const rc = $('ribbonColor');
     if (rc) {
       rc.value = App.doc.curColor || '';
@@ -192,7 +201,7 @@ const UI = {
     App.modes[m] = !App.modes[m];
     if (m === 'ortho' && App.modes.ortho) App.modes.polar = false;
     if (m === 'polar' && App.modes.polar) App.modes.ortho = false;
-    const names = { grid: 'Grid', snap: 'Snap', ortho: 'Ortho', polar: 'Polar', osnap: 'Osnap', dyn: 'Dynamic input' };
+    const names = { grid: 'Grid', snap: 'Snap', ortho: 'Ortho', polar: 'Polar', osnap: 'Osnap', dyn: 'Dynamic input', lwt: 'Lineweight display' };
     this.log(`<${names[m]} ${App.modes[m] ? 'on' : 'off'}>`);
     this.refreshStatus(); updateEffective(); updatePreview();
   },
@@ -355,6 +364,7 @@ const UI = {
         <tr><td colspan="2" class="psec">Drafting</td></tr>
         <tr><td>Grid spacing</td><td><input data-g="gridSize" value="${fmt(App.gridSize)}"></td></tr>
         <tr><td>Snap spacing</td><td><input data-g="snapSize" value="${fmt(App.snapSize)}"></td></tr>
+        <tr><td>Linetype scale</td><td><input data-g="ltscale" value="${fmt(App.doc.ltscale || 1)}"></td></tr>
         <tr><td>Polar increment</td><td><select data-g="polarInc">${[5, 10, 15, 22.5, 30, 45, 90].map(a => `<option ${a === App.polarInc ? 'selected' : ''}>${a}</option>`).join('')}</select></td></tr>
         <tr><td colspan="2" class="psec">Drawing</td></tr>
         <tr><td>Objects</td><td class="ro">${App.doc.ents.length}</td></tr>
@@ -363,7 +373,7 @@ const UI = {
         const k = el.dataset.g, v = el.value;
         if (k === 'cur') { this.change(() => { App.doc.cur = v; }); return; }
         const n = parseFloat(v); if (!(n > 0)) return;
-        if (k === 'textH' || k === 'dimH') this.change(() => { App.doc[k] = n; });
+        if (k === 'textH' || k === 'dimH' || k === 'ltscale') this.change(() => { App.doc[k] = n; });
         else { App[k] = n; App.dirty = true; }
       });
       return;
@@ -376,6 +386,11 @@ const UI = {
       <table class="ptable"><tr><td colspan="2" class="psec">General</td></tr>
       <tr><td>Layer</td><td><select data-p="layer">${lv ? '' : '<option selected>*VARIES*</option>'}${layerOpts(lv)}</select></td></tr>
       <tr><td>Color</td><td><div style="display:flex;gap:3px"><select data-p="color" style="flex:1">${cv === null ? '<option selected>*VARIES*</option>' : ''}${COLORS.map(([n, c]) => `<option value="${c}" ${cv === c ? 'selected' : ''}>${n}</option>`).join('')}${cv && !COLORS.some(c => c[1] === cv) ? `<option value="${cv}" selected>${cv}</option>` : ''}</select><input type="color" data-p="colorpick" value="${cv || '#ffffff'}" style="width:26px;padding:0"></div></td></tr>`;
+    const lts = new Set(s.map(e => e.lt || '')), lws = new Set(s.map(e => e.lw === undefined ? '' : e.lw));
+    const ltv = lts.size === 1 ? ([...lts][0] || undefined) : null, lwv = lws.size === 1 ? ([...lws][0] === '' ? undefined : [...lws][0]) : null;
+    html += `<tr><td>Linetype</td><td><select data-p="lt">${ltv === null ? '<option selected>*VARIES*</option>' : ''}${ltOptions(ltv, true)}</select></td></tr>
+      <tr><td>Linetype scale</td><td><input data-p="lts" value="${s.length === 1 ? fmt(s[0].lts || 1) : ''}"></td></tr>
+      <tr><td>Lineweight</td><td><select data-p="lw">${lwv === null ? '<option selected>*VARIES*</option>' : ''}${lwOptions(lwv, true)}</select></td></tr>`;
     if (s.length === 1) {
       html += `<tr><td colspan="2" class="psec">Geometry</td></tr>`;
       Types[s[0].type].props(s[0]).forEach((p, i) => {
@@ -387,6 +402,12 @@ const UI = {
     body.innerHTML = html;
     const sl = body.querySelector('[data-p=layer]');
     sl.onchange = () => this.change(() => s.forEach(e => { e.layer = sl.value; }));
+    const slt = body.querySelector('[data-p=lt]');
+    slt.onchange = () => this.change(() => s.forEach(e => { if (slt.value) e.lt = slt.value; else delete e.lt; }));
+    const slw = body.querySelector('[data-p=lw]');
+    slw.onchange = () => this.change(() => s.forEach(e => { if (slw.value === '') delete e.lw; else e.lw = parseFloat(slw.value); }));
+    const slts = body.querySelector('[data-p=lts]');
+    slts.onchange = () => { const n = parseFloat(slts.value); if (n > 0) this.change(() => s.forEach(e => { if (n === 1) delete e.lts; else e.lts = n; })); };
     const sc = body.querySelector('[data-p=color]');
     sc.onchange = () => this.change(() => s.forEach(e => { if (sc.value) e.color = sc.value; else delete e.color; }));
     const cp = body.querySelector('[data-p=colorpick]');
@@ -410,13 +431,15 @@ const UI = {
     const body = $('layersBody');
     const counts = {};
     App.doc.ents.forEach(e => { counts[e.layer] = (counts[e.layer] || 0) + 1; });
-    body.innerHTML = `<table class="ltable"><tr><th></th><th>Name</th><th>On</th><th>Lock</th><th>Color</th><th></th></tr>
+    body.innerHTML = `<table class="ltable"><tr><th></th><th>Name</th><th>On</th><th>Lock</th><th>Color</th><th>Linetype</th><th>LW</th><th></th></tr>
       ${App.doc.layers.map((l, i) => `<tr class="${l.name === App.doc.cur ? 'cur' : ''}">
         <td><button data-l="cur" data-i="${i}" title="Set current">${l.name === App.doc.cur ? '✔' : '·'}</button></td>
         <td><input class="name" data-l="name" data-i="${i}" value="${esc(l.name)}" ${l.name === '0' ? 'readonly' : ''} title="${counts[l.name] || 0} object(s)"></td>
         <td><button data-l="on" data-i="${i}" title="On/Off">${l.on ? '●' : '○'}</button></td>
         <td><button data-l="lock" data-i="${i}" title="Lock/Unlock">${l.locked ? '🔒' : '🔓'}</button></td>
         <td><input type="color" data-l="color" data-i="${i}" value="${l.color}"></td>
+        <td><select class="lsel" data-l="lt" data-i="${i}">${ltOptions(l.lt || 'Continuous', false)}</select></td>
+        <td><select class="lsel" data-l="lw" data-i="${i}">${lwOptions(l.lw === undefined ? 0.25 : l.lw, false)}</select></td>
         <td><button data-l="del" data-i="${i}" title="Delete layer">✕</button></td></tr>`).join('')}
       </table><div class="btnrow"><button class="btn" id="newLayer">+ New layer</button><button class="btn" id="layerFromSel" title="Make the selected object's layer current">Match current</button></div>`;
     body.querySelectorAll('[data-l]').forEach(el => {
@@ -424,6 +447,8 @@ const UI = {
       const act = el.dataset.l;
       if (act === 'name') { el.onchange = () => this.renameLayer(l, el.value.trim()); el.onkeydown = (e) => { if (e.key === 'Enter') el.blur(); }; return; }
       if (act === 'color') { el.onchange = () => this.change(() => { l.color = el.value; }); return; }
+      if (act === 'lt') { el.onchange = () => this.change(() => { l.lt = el.value; }); return; }
+      if (act === 'lw') { el.onchange = () => this.change(() => { l.lw = parseFloat(el.value); }); return; }
       el.onclick = () => {
         if (act === 'cur') this.change(() => { App.doc.cur = l.name; l.on = true; });
         if (act === 'on') this.change(() => { l.on = !l.on; if (!l.on) App.doc.ents.forEach(e => { if (e.layer === l.name) App.sel.delete(e.id); }); });
@@ -438,7 +463,7 @@ const UI = {
     $('newLayer').onclick = () => {
       let n = 1; while (App.doc.layers.some(l => l.name === 'Layer' + n)) n++;
       const palette = ['#ff0000', '#00ff00', '#00ffff', '#ff00ff', '#ff7f00', '#ffff00', '#0080ff'];
-      this.change(() => { App.doc.layers.push({ name: 'Layer' + n, color: palette[(n - 1) % palette.length], on: true, locked: false }); });
+      this.change(() => { App.doc.layers.push({ name: 'Layer' + n, color: palette[(n - 1) % palette.length], on: true, locked: false, lt: 'Continuous', lw: 0.25 }); });
     };
     $('layerFromSel').onclick = () => { const s = selEnts(); if (s.length) this.change(() => { App.doc.cur = s[0].layer; }); };
     const rl = $('ribbonLayer');

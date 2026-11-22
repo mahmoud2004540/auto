@@ -419,7 +419,7 @@ def('TRIM', ['TR'], 'Trim objects at intersections', async () => {
     App.sel.clear();
     const pick = await getEntity('Select object to trim or <exit>', { filter: e => ['line', 'circle', 'arc', 'pline'].includes(e.type) });
     if (!pick) return;
-    const others = App.doc.ents.filter(o => o !== pick.e && visible(o));
+    const others = App.doc.ents.filter(o => o !== pick.e && visible(o) && o.type !== 'hatch');
     const res = trimEnt(pick.e, pick.p, others);
     if (!res) {
       // nothing intersects: delete like quick-trim does
@@ -440,7 +440,7 @@ def('EXTEND', ['EX'], 'Extend lines to the nearest boundary', async () => {
     const from = nearStart ? e.p2 : e.p1, to = nearStart ? e.p1 : e.p2;
     let best = null, bt = Infinity;
     for (const o of App.doc.ents) {
-      if (o === e || !visible(o)) continue;
+      if (o === e || !visible(o) || o.type === 'hatch') continue;
       for (const pl of entApprox(o)) for (let i = 0; i < pl.length - 1; i++) {
         const r = segSeg(from, to, pl[i], pl[i + 1], true);
         if (r && r.t > 1 + 1e-7 && r.u >= -1e-9 && r.u <= 1 + 1e-9 && r.t < bt) { bt = r.t; best = r.p; }
@@ -622,3 +622,49 @@ def('PASTECLIP', [], 'Paste from clipboard (Ctrl+V)', async () => {
   App.sel.clear();
   mk(p).forEach(e => { e._keepColor = true; addEnt(e); });
 });
+
+// ---------------- HATCH ----------------
+def('HATCH', ['H', 'BH', 'BHATCH'], 'Fill an enclosed area with a hatch pattern', async () => {
+  const hs = App.hatch || (App.hatch = { pat: 'ANSI31', scale: 1, ang: 0 });
+  const hatchLayer = () => App.doc.cur;
+  let made = 0;
+  for (;;) {
+    const r = await getPoint(`Pick internal point or [Select objects/Pattern/sCale/Angle] (pattern=${hs.pat}, scale=${fmt(hs.scale)}, angle=${fmt(deg(hs.ang))})`,
+      { keywords: ['Select', 'Pattern', 'sCale', 'Angle'], noSnap: true, rubber: false });
+    if (r === null) break;
+    if (r === 'Pattern') {
+      const names = Object.keys(HATCH_PATTERNS);
+      UI.log('Patterns: ' + names.map(n => `${n} (${HATCH_PATTERNS[n].desc})`).join(', '), 'info');
+      const k = await getKeyword(`Enter pattern name <${hs.pat}>`, { keywords: names, def: hs.pat });
+      if (k) hs.pat = k;
+      continue;
+    }
+    if (r === 'sCale') { const v = await getDist(`Specify hatch scale <${fmt(hs.scale)}>`, { def: hs.scale }); if (typeof v === 'number' && v > 0) hs.scale = v; continue; }
+    if (r === 'Angle') { const v = await getAngle(`Specify hatch angle <${fmt(deg(hs.ang))}>`, { def: hs.ang }); if (typeof v === 'number') hs.ang = v; continue; }
+    let loops = null;
+    if (r === 'Select') {
+      const s = await getSelection('Select closed objects', { noPickfirst: true });
+      loops = s.filter(e => e.type === 'circle' || (e.type === 'pline' && e.closed && e.pts.length > 2)).map(e => entApprox(e)[0].slice(0, -1).map(V.clone));
+      App.sel.clear();
+      if (!loops.length) { UI.log('No closed polylines or circles selected.', 'err'); continue; }
+    } else if (isPt(r)) {
+      UI.log('Analyzing the selected data...');
+      loops = findBoundary(r);
+      if (!loops) { UI.log('Valid hatch boundary not found. Make sure the area is fully closed.', 'err'); continue; }
+    }
+    addEnt({ type: 'hatch', loops, pat: hs.pat, scale: hs.scale, ang: hs.ang, layer: hatchLayer() });
+    made++;
+  }
+  if (made) UI.log(`${made} hatch object(s) created.`);
+});
+
+def('LTSCALE', ['LTS'], 'Set global linetype scale', async () => {
+  const v = await getDist(`Enter new linetype scale factor <${fmt(App.doc.ltscale || 1)}>`, { def: App.doc.ltscale || 1 });
+  if (typeof v === 'number' && v > 0) { App.doc.ltscale = v; App.dirty = true; UI.log('Regenerating model.'); }
+});
+def('LWDISPLAY', ['LWT'], 'Toggle lineweight display', async () => { UI.toggleMode('lwt'); }, { noUndo: true, noRepeat: true });
+def('LINETYPE', ['LT'], 'Show available linetypes', async () => {
+  for (const k in LTYPES) UI.log(`${k.padEnd(12)} ${LTYPES[k].desc}`, 'info');
+  UI.log('Set linetype per layer in the Layers palette, or per object in Properties.', 'info');
+  UI.showHistory(true);
+}, { noUndo: true, noRepeat: true });

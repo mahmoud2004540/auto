@@ -251,6 +251,7 @@ function entDist(e, p) {
   if (e.type === 'text') { // inside text box counts
     const b = entBBox(e); if (ptInRect(p, b)) best = 0;
   }
+  if (e.type === 'hatch' && ptInLoops(p, e.loops)) best = Math.min(best, px(5)); // inside a hatch: pickable, lines on top win
   return best;
 }
 function entNearest(e, p) {

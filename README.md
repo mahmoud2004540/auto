@@ -43,6 +43,7 @@ host (e.g. GitHub Pages).
 | RECTANG | REC | مستطيل (بالنقاط أو بالأبعاد) |
 | POLYGON | POL | مضلع منتظم |
 | ELLIPSE | EL | قطع ناقص |
+| HATCH | H, BH | تهشير منطقة مغلقة (بنقرة داخلها أو باختيار كائنات مغلقة) — الأنماط: SOLID, ANSI31, ANSI32, ANSI37, LINE, NET, NET3, EARTH |
 | TEXT | T, DT | نص |
 | DIMLINEAR | DLI | بُعد أفقي/رأسي |
 | DIMALIGNED | DAL | بُعد مائل |
@@ -60,6 +61,10 @@ host (e.g. GitHub Pages).
 | EXPLODE | X | تفكيك |
 | ERASE | E, Delete | حذف |
 | MATCHPROP | MA | نسخ الخصائص |
+| LINETYPE | LT | عرض أنواع الخطوط (Continuous, Dashed, Hidden, Center, Phantom, DashDot, Dot, Border) |
+| LTSCALE | LTS | مقياس أنواع الخطوط |
+| LWDISPLAY | LWT | إظهار/إخفاء سُمك الخطوط |
+| COPYCLIP / PASTECLIP / CUTCLIP | Ctrl+C / Ctrl+V / Ctrl+X | الحافظة |
 | DIST | DI | قياس مسافة وزاوية |
 | AREA | AA | حساب مساحة ومحيط |
 | ID | | إحداثيات نقطة |

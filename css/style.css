@@ -31,7 +31,7 @@ svg.ic { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-wid
 .tabs button.active { background: var(--bg1); color: #fff; border-top-color: var(--acc); }
 .panels { display: flex; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .rgroup { display: flex; flex-direction: column; border-right: 1px solid var(--line); padding: 4px 6px 0; flex: none; }
-.rgroup .items { display: flex; flex-wrap: wrap; gap: 2px; max-width: 330px; align-content: flex-start; }
+.rgroup .items { display: flex; flex-wrap: wrap; gap: 2px; max-width: 440px; align-content: flex-start; }
 .rgroup .glabel { text-align: center; color: var(--fg2); font-size: 11px; padding: 2px 0 3px; border-top: 1px solid var(--bg2); margin-top: 3px; }
 .rbtn { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 54px; height: 54px; border-radius: 4px; color: var(--fg); gap: 2px; font-size: 11px; }
 .rbtn.small { flex-direction: row; width: auto; height: 25px; padding: 0 7px; gap: 5px; justify-content: flex-start; }
@@ -69,7 +69,7 @@ svg.ic { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-wid
 #compass .wcs { position: absolute; left: 34px; top: 112px; padding: 0 8px; font-size: 10px; border: 1px solid #6c7b8f; border-radius: 8px; background: rgba(40,48,60,.8); }
 
 /* side palettes */
-#side { width: 270px; flex: none; background: var(--bg1); border-left: 1px solid var(--line); overflow-y: auto; }
+#side { width: 360px; flex: none; background: var(--bg1); border-left: 1px solid var(--line); overflow-y: auto; }
 .pal h3 { margin: 0; padding: 6px 8px; font-size: 12px; font-weight: 600; background: var(--bg2); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); }
 .pal .collapse { width: 20px; color: var(--fg2); }
 .pal .body { padding: 6px 8px 10px; }
@@ -160,3 +160,5 @@ svg.ic { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-wid
   #navbar { top: 110px; right: 12px; }
   #vplabel { display: none; }
 }
+
+.ltable .lsel { font-size: 11px; padding: 1px; max-width: 78px; }
