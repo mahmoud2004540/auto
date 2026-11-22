@@ -14,7 +14,7 @@ const App = {
   over: false,
   snap: null,                // current osnap {p,t}
   track: null,               // polar track {base, ang}
-  modes: { grid: true, snap: false, ortho: false, polar: true, osnap: true, dyn: true, lwt: false },
+  modes: { grid: true, snap: false, ortho: false, polar: true, osnap: true, dyn: true, lwt: false, cons: true },
   osnaps: { end: true, mid: true, cen: true, quad: true, int: true, perp: true, ins: true, node: true, near: false },
   gridSize: 10, snapSize: 10, polarInc: 45,
   temp: [],
@@ -261,6 +261,7 @@ function render() {
   if (!App.dirty) return;
   App.dirty = false;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  if (App.v3d) { render3D(); return; }
   ctx.fillStyle = '#212830'; ctx.fillRect(0, 0, CW, CH);
   const paper = App.space !== 'Model';
   if (paper) renderLayout();
@@ -288,6 +289,8 @@ function render() {
     Types[e.type].draw(R, e);
     ctx.setLineDash([]);
   }
+
+  if (!paper) drawConstraints(ctx);
 
   // temp / preview entities
   for (const t of App.temp) {
@@ -490,7 +493,7 @@ function finish(r, v, echo) {
 }
 function cancelReq() {
   const r = App.req;
-  if (r) { App.req = null; App.temp = []; App.snap = null; App.track = null; App.win = null; r.rej(new Cancel()); }
+  if (r) { App.req = null; App.temp = []; App.snap = null; App.track = null; App.win = null; if (r.cleanup) r.cleanup(); r.rej(new Cancel()); }
   App.dirty = true;
 }
 
@@ -602,6 +605,7 @@ async function runCommand(input, queue) {
   const fn = typeof input === 'function' ? input : (name && Commands[name] ? Commands[name].fn : null);
   if (!fn) { UI.log(`Unknown command "${String(input).toUpperCase()}". Press F1 or type HELP.`, 'err'); return; }
   if (App.cmd) { cancelReq(); await new Promise(r => setTimeout(r, 0)); }
+  if (name && App.v3d && !V3_OK.has(name)) { UI.log(`${name} works in the 2D view. Press Esc or click TOP to return to plan view.`, 'err'); return; }
   if (name && App.space !== 'Model' && !PAPER_OK.has(name)) { UI.log(`${name} works in Model space. Click the Model tab to draw and edit.`, 'err'); return; }
   const transparent = name && Commands[name].noUndo;
   App.queue = queue || [];
@@ -619,6 +623,8 @@ async function runCommand(input, queue) {
   } finally {
     App.cmd = null; App.req = null; App.temp = []; App.queue = []; App.snap = null; App.track = null; App.win = null;
     if (App.usedSel) { App.sel.clear(); App.usedSel = false; }
+    if (App.doc.cons && App.doc.cons.length) { try { solveConstraints(App.pinned || new Set()); } catch (err) { console.error(err); } }
+    App.pinned = null;
     if (before !== null && snapshot() !== before) pushUndo(before);
     UI.setPrompt('', null);
     UI.refreshProps(); UI.refreshLayers();
@@ -659,6 +665,7 @@ canvas.addEventListener('pointerdown', (ev) => {
   }
   if (ev.button === 2) { submitInput(''); return; }
   if (ev.button !== 0) return;
+  if (App.v3d) { App.orbit = { x: App.scr.x, y: App.scr.y, yaw: V3.yaw, pitch: V3.pitch }; return; }
   downInfo = { x: App.scr.x, y: App.scr.y, shift: ev.shiftKey, touch: ev.pointerType === 'touch' };
   if (ev.pointerType !== 'touch') handlePress(ev.shiftKey);
 });
@@ -674,7 +681,7 @@ function handlePress(shift) {
     else UI.log('No object found.');
     return;
   }
-  if (r && r.kind === 'kw') return;
+  if (r && (r.kind === 'kw' || r.kind === 'mtext')) return;
   if (!r && App.space !== 'Model') return;
   if (App.cmd && !r) return;
   // selection (idle or select request)
@@ -719,6 +726,11 @@ canvas.addEventListener('pointermove', (ev) => {
   }
   setCursorFromEvent(ev);
   App.over = true;
+  if (App.orbit) {
+    V3.yaw = App.orbit.yaw + (App.scr.x - App.orbit.x) * 0.008;
+    V3.pitch = Math.max(0, Math.min(Math.PI / 2 - 1e-3, App.orbit.pitch - (App.scr.y - App.orbit.y) * 0.008));
+    App.dirty = true; return;
+  }
   if (App.pan) {
     App.view.cx = App.pan.cx - (App.scr.x - App.pan.sx) / App.view.s;
     App.view.cy = App.pan.cy + (App.scr.y - App.pan.sy) / App.view.s;
@@ -743,6 +755,7 @@ function onCursorMove() {
 canvas.addEventListener('pointerup', (ev) => {
   pointers.delete(ev.pointerId);
   if (pinch) { if (pointers.size < 2) pinch = null; return; }
+  if (App.orbit) { App.orbit = null; return; }
   if (App.pan) { App.pan = null; App.dirty = true; return; }
   setCursorFromEvent(ev);
   if (ev.button !== 0 || !downInfo) return;
@@ -763,10 +776,10 @@ canvas.addEventListener('wheel', (ev) => {
 }, { passive: false });
 canvas.addEventListener('auxclick', (ev) => { if (ev.button === 1 && ev.detail === 2) zoomExtents(); });
 canvas.addEventListener('dblclick', (ev) => {
-  if (App.req) return;
+  if (App.req || App.v3d || App.space !== 'Model') return;
   setCursorFromEvent(ev);
   const e = pickEnt(App.raw);
-  if (e && e.type === 'text') { App.sel.clear(); App.sel.add(e.id); UI.refreshProps(); UI.focusProp('Contents'); }
+  if (e && ['text', 'mtext', 'table'].includes(e.type)) { const at = V.clone(App.raw); App.sel.clear(); runCommand(() => editEntityText(e, at)); }
 });
 
 // ---------- grip editing ----------
@@ -780,7 +793,10 @@ function startGrip(e, g) {
       base: g.p,
       preview: (q) => { const c = entClone(e); const gg = Types[c.type].grips(c).find(x => V.eq(x.p, g.p)); if (gg) gg.set(c, q); c.dash = true; return [c]; },
     });
-    if (p && typeof p === 'object') { g.set(e, p); invalidate(e); }
+    if (p && typeof p === 'object') {
+      if (e.type === 'line') { const gs = Types.line.grips(e); const i = gs.findIndex(x => V.eq(x.p, g.p)); App.pinned = new Set(i === 0 ? [e.id + ':p1'] : i === 1 ? [e.id + ':p2'] : [e.id + ':p1', e.id + ':p2']); }
+      g.set(e, p); invalidate(e);
+    }
     App.hotGrip = null;
   });
 }

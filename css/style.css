@@ -231,3 +231,10 @@ svg.ic .fb { fill: #4aa8ff; stroke: none; } svg.ic .fy { fill: #f5c542; stroke: 
 .psgrid label { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--fg2); }
 .psgrid input, .psgrid select { width: 60%; }
 @media (max-width: 600px) { .psgrid, .psgrid fieldset.wide { grid-template-columns: 1fr; } }
+
+#viewport.v3d #vplabel { display: none; }
+#viewport.v3d #compass .top::after { content: ''; }
+.mteditor { position: absolute; z-index: 20; background: #2b333e; border: 1px solid var(--acc); border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
+.mteditor .mtbar { display: flex; align-items: center; gap: 8px; padding: 4px 6px; font-size: 11px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.mteditor .mtbar .muted { flex: 1; }
+.mteditor textarea { display: block; background: rgba(15,19,24,.9); color: #fff; border: 0; outline: 0; padding: 6px 8px; resize: both; font-family: Arial, Helvetica, sans-serif; min-height: 2em; max-width: calc(100vw - 40px); }

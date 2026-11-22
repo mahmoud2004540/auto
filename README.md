@@ -44,7 +44,11 @@ host (e.g. GitHub Pages).
 | POLYGON | POL | مضلع منتظم |
 | ELLIPSE | EL | قطع ناقص |
 | HATCH | H, BH | تهشير منطقة مغلقة (بنقرة داخلها أو باختيار كائنات مغلقة) — الأنماط: SOLID, ANSI31, ANSI32, ANSI37, LINE, NET, NET3, EARTH |
-| TEXT | T, DT | نص |
+| MTEXT | T, MT | نص متعدد السطور مع التفاف تلقائي (محرر داخل الرسم، Ctrl+Enter للإنهاء) |
+| TEXT | DT | نص سطر واحد |
+| TEXTEDIT | ED | تعديل نص / نص متعدد / خلية جدول (أو نقر مزدوج) |
+| TABLE | TB | جدول بعنوان ورؤوس أعمدة — نقر مزدوج على الخلية لتعديلها |
+| SPLINE | SPL | منحنى ناعم يمر بالنقاط |
 | DIMLINEAR | DLI | بُعد أفقي/رأسي |
 | DIMALIGNED | DAL | بُعد مائل |
 | DIMRADIUS / DIMDIAMETER | DRA / DDI | بُعد نصف القطر / القطر |
@@ -53,6 +57,14 @@ host (e.g. GitHub Pages).
 | PAGESETUP | PS | إعداد الورقة: المقاس A4–A0، الاتجاه، مقياس الرسم، الوحدات، بيانات لوحة العنوان |
 | PLOT | Ctrl+P | طباعة الـ Layout إلى ملف PDF بمقياس رسم حقيقي |
 | LAYOUT / MODEL | LO / MS | إنشاء Layout جديد / الرجوع لـ Model |
+| GCHORIZONTAL / GCVERTICAL | GCH / GCV | قيد أفقي / رأسي |
+| GCPARALLEL / GCPERPENDICULAR | GCPA / GCPE | قيد توازي / تعامد |
+| GCCOINCIDENT / GCEQUAL / GCFIX | GCCO / GCE / GCF | قيد تطابق نقاط / تساوي أطوال / تثبيت نقطة |
+| DCLINEAR | DCL | قيد بُعدي لطول خط |
+| AUTOCONSTRAIN / DELCON / CONSTRAINTBAR | AUTOC / — / CBAR | قيود تلقائية / حذف القيود / إظهار وإخفاء |
+| EXTRUDE | EXT | إعطاء ارتفاع للأشكال المغلقة (3D) |
+| ORBIT / PLAN | 3DO / TOP | عرض ثلاثي الأبعاد بالدوران / الرجوع للمسقط |
+| VSCURRENT | VS | Shaded أو Wireframe |
 | MOVE | M | تحريك |
 | COPY | CO, CP | نسخ (مع خيار Array) |
 | ROTATE | RO | تدوير (Copy / Reference) |
@@ -90,6 +102,10 @@ host (e.g. GitHub Pages).
 | SVGOUT / PNGOUT | SVG / PNG | تصدير صورة |
 
 مفاتيح الوظائف: F1 مساعدة، F2 سجل الأوامر، F3 الالتقاط، F7 الشبكة، F8 Ortho، F9 Snap، F10 Polar، F12 الإدخال الديناميكي.
+
+## ملفات DWG
+صيغة DWG صيغة مغلقة خاصة بشركة Autodesk، وقراءتها تحتاج مكتبات ضخمة غير متاحة للمتصفح.
+الحل: افتح ملف DWG في أوتوكاد أو في البرنامج المجاني **ODA File Converter** واحفظه بصيغة DXF، ثم افتحه هنا.
 
 ## الملفات / Files
 

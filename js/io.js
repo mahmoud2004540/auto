@@ -108,7 +108,7 @@ const IO = {
     w(0, 'ENDTAB');
     w(0, 'ENDSEC');
     const writeEnt = (e) => {
-      const head = (t) => { w(0, t); w(8, e.layer || '0'); if (e.lt) w(6, e.lt.toUpperCase()); if (e.color) w(62, hexToAci(e.color)); };
+      const head = (t) => { w(0, t); w(8, e.layer || '0'); if (e.thick) w(39, num(e.thick)); if (e.lt) w(6, e.lt.toUpperCase()); if (e.color) w(62, hexToAci(e.color)); };
       if (e.type === 'hatch') {
         const pat = HATCH_PATTERNS[e.pat] || HATCH_PATTERNS.ANSI31;
         if (!pat.fam.length) {
@@ -207,6 +207,7 @@ const IO = {
         const elt = ltName(get(r, 6)); if (elt) base.lt = elt;
         const elw = parseInt(get(r, 370, '-1'), 10); if (elw >= 0) base.lw = elw / 100;
         const els = getN(r, 48, 1); if (els !== 1 && els > 0) base.lts = els;
+        const th = getN(r, 39, 0); if (th) base.thick = th;
         switch (r.type) {
           case 'LINE': sink.push({ ...base, type: 'line', p1: { x: getN(r, 10), y: getN(r, 20) }, p2: { x: getN(r, 11), y: getN(r, 21) } }); break;
           case 'CIRCLE': sink.push({ ...base, type: 'circle', c: { x: getN(r, 10), y: getN(r, 20) }, r: getN(r, 40) }); break;
@@ -242,7 +243,7 @@ const IO = {
             s = s.replace(/\\P/g, '\n').replace(/\\[A-Za-z][^;]*;/g, '').replace(/[{}]/g, '');
             const h = getN(r, 40, 2.5) || 2.5; let p = { x: getN(r, 10), y: getN(r, 20) };
             const rot = get(r, 50) !== undefined ? rad(getN(r, 50)) : Math.atan2(getN(r, 21), getN(r, 11) || 1);
-            s.split('\n').forEach((ln, idx) => { if (ln) sink.push({ ...base, type: 'text', p: V.polar(p, rot - Math.PI / 2, h * (1 + idx * 1.6)), h, rot, s: ln }); });
+            if (s.trim()) sink.push({ ...base, type: 'mtext', p, h, rot, s, w: getN(r, 41, 0) });
             break;
           }
           case 'ELLIPSE': {
@@ -265,8 +266,10 @@ const IO = {
               if (c === (fit ? 11 : 10)) { cur = { x: parseFloat(v), y: 0 }; pts.push(cur); }
               else if (c === (fit ? 21 : 20) && cur) cur.y = parseFloat(v);
             }
-            if (!fit && pts.length > 2) pts = bspline(pts, parseInt(get(r, 71, '3'), 10) || 3);
-            if (pts.length > 1) sink.push({ ...base, type: 'pline', pts, closed: (parseInt(get(r, 70, '0'), 10) & 1) === 1 });
+            const sclosed = (parseInt(get(r, 70, '0'), 10) & 1) === 1;
+            if (fit && pts.length > 1) { sink.push({ ...base, type: 'spline', pts, closed: sclosed }); break; }
+            if (pts.length > 2) pts = bspline(pts, parseInt(get(r, 71, '3'), 10) || 3);
+            if (pts.length > 1) sink.push({ ...base, type: 'pline', pts, closed: sclosed });
             break;
           }
           case 'HATCH': {

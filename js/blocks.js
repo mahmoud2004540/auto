@@ -86,7 +86,7 @@ function flattenEnt(e, out, depth = 0) {
       if (L && !L.on) continue;
       flattenEnt(inheritFromInsert(s, e), out, depth + 1);
     }
-  } else if (e.type === 'dim' || e.type === 'leader') {
+  } else if (['dim', 'leader', 'mtext', 'table', 'spline'].includes(e.type)) {
     for (const p of Types[e.type].explode(e)) { p.layer = e.layer; if (e.color) p.color = e.color; out.push(p); }
   } else out.push(e);
 }

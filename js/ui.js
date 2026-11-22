@@ -87,6 +87,18 @@ Object.assign(ICONS, {
   dimang: '<path d="M4 20h16M4 20 16 6"/><path class="b" d="M12 20a8 8 0 0 0-2.5-6"/>',
   pdf: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path class="r" d="M8 13h8M8 16h8M8 10h3"/>',
   pagesetup: '<rect x="4" y="3" width="16" height="18"/><rect class="b" x="7" y="6" width="10" height="8"/><path d="M7 17h10"/>',
+  spline: '<path d="M3 18c3-12 7-12 9-6s6 6 9-6"/><circle class="fb" cx="3" cy="18" r="1.5"/><circle class="fb" cx="12" cy="12" r="1.5"/><circle class="fb" cx="21" cy="6" r="1.5"/>',
+  table: '<rect x="3" y="4" width="18" height="16"/><path class="b" d="M3 9h18"/><path d="M3 14h18M9 9v11M15 9v11"/>',
+  extrude: '<path d="M4 17l8 4 8-4-8-4z"/><path class="b" d="M4 17V8l8-4 8 4v9M12 13V4"/>',
+  orbit: '<ellipse cx="12" cy="12" rx="9" ry="4"/><path class="b" d="M12 3v18"/><path class="b" d="M19 8l2 4-4 0"/>',
+  shaded: '<path class="fb" d="M12 3 4 7v10l8 4z" opacity=".55"/><path d="M12 3l8 4v10l-8 4-8-4V7zM12 11v10M4 7l8 4 8-4"/>',
+  autocon: '<path d="M4 20V4h16"/><rect class="b" x="2.5" y="2.5" width="3" height="3"/><path class="y" d="M10 14l3 3 6-7"/>',
+  gccoin: '<path d="M3 21 12 12M12 12l9-3"/><rect class="b" x="10" y="10" width="4" height="4"/>',
+  gchor: '<path d="M3 12h18"/><path class="b" d="M7 6h10"/>',
+  gcver: '<path d="M12 3v18"/><path class="b" d="M6 7v10"/>',
+  gcpar: '<path d="M4 18 14 4M10 20 20 6"/>',
+  gcperp: '<path d="M4 20h16M12 20V4"/><path class="b" d="M12 16h4v4"/>',
+  gceq: '<path class="b" d="M5 9h14M5 15h14"/>',
   st_grid: '<path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/>',
   st_snap: '<g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="19" cy="5" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="19" r="1.5"/><circle cx="12" cy="19" r="1.5"/><circle cx="19" cy="19" r="1.5"/></g>',
   st_ortho: '<path d="M5 3v16h16"/>',
@@ -112,14 +124,15 @@ const RIBBON = {
     { label: 'Draw', items: [['LINE', 'Line', 'line'], ['PLINE', 'Polyline', 'pline'],
       ['CIRCLE', 'Circle', 'circle', [['Center, Radius', 'CIRCLE'], ['2-Point', 'CIRCLE', ['2P']], ['3-Point', 'CIRCLE', ['3P']]]],
       ['ARC', 'Arc', 'arc', [['3-Point', 'ARC'], ['Center, Start, End', 'ARC', ['Center']]]],
-      { col: [['RECTANG', 'Rectangle', 'rect', [['Rectangle', 'RECTANG'], ['Polygon', 'POLYGON']]], ['ELLIPSE', 'Ellipse', 'ellipse'], ['HATCH', 'Hatch', 'hatch']] }] },
+      { col: [['RECTANG', 'Rectangle', 'rect', [['Rectangle', 'RECTANG'], ['Polygon', 'POLYGON']]], ['ELLIPSE', 'Ellipse', 'ellipse'], ['HATCH', 'Hatch', 'hatch']] },
+      { col: [['SPLINE', 'Spline', 'spline'], ['POLYGON', 'Polygon', 'polygon'], ['EXTRUDE', 'Extrude', 'extrude']] }] },
     { label: 'Modify', items: [
       { col: [['MOVE', 'Move', 'move'], ['COPY', 'Copy', 'copy'], ['STRETCH', 'Stretch', 'stretch']] },
       { col: [['ROTATE', 'Rotate', 'rotate'], ['MIRROR', 'Mirror', 'mirror'], ['SCALE', 'Scale', 'scale']] },
       { col: [['TRIM', 'Trim', 'trim', [['Trim', 'TRIM'], ['Extend', 'EXTEND']]], ['FILLET', 'Fillet', 'fillet', [['Fillet', 'FILLET'], ['Chamfer', 'CHAMFER']]], ['ARRAYRECT', 'Array', 'array', [['Rectangular Array', 'ARRAYRECT'], ['Polar Array', 'ARRAYPOLAR']]]] },
       { col: [['ERASE', 'Erase', 'erase'], ['EXPLODE', 'Explode', 'explode'], ['OFFSET', 'Offset', 'offset']] },
       { col: [['BREAK', 'Break', 'break'], ['JOIN', 'Join', 'join'], ['BREAKATPOINT', 'Break at Point', 'breakpt']] }] },
-    { label: 'Annotation', items: [['TEXT', 'Text', 'text'], ['DIMLINEAR', 'Dimension', 'dimlin', [['Linear', 'DIMLINEAR'], ['Aligned', 'DIMALIGNED'], ['Angular', 'DIMANGULAR'], ['Radius', 'DIMRADIUS'], ['Diameter', 'DIMDIAMETER']]], { col: [['LEADER', 'Leader', 'leader'], ['DIMRADIUS', 'Radius', 'dimrad'], ['DIMANGULAR', 'Angular', 'dimang']] }] },
+    { label: 'Annotation', items: [['MTEXT', 'Text', 'text', [['Multiline Text', 'MTEXT'], ['Single Line', 'TEXT']]], ['DIMLINEAR', 'Dimension', 'dimlin', [['Linear', 'DIMLINEAR'], ['Aligned', 'DIMALIGNED'], ['Angular', 'DIMANGULAR'], ['Radius', 'DIMRADIUS'], ['Diameter', 'DIMDIAMETER']]], { col: [['LEADER', 'Leader', 'leader'], ['TABLE', 'Table', 'table'], ['DIMANGULAR', 'Angular', 'dimang']] }] },
     { label: 'Layers', items: [['LAYER', 'Layer Properties', 'layers'], { layerctl: true }] },
     { label: 'Block', items: [['INSERT', 'Insert', 'insert'], { col: [['BLOCK', 'Create', 'blockc'], ['EXPLODE', 'Explode', 'explode']] }] },
     { label: 'Properties', items: [['MATCHPROP', 'Match Properties', 'match'], { colorctl: true }] },
@@ -132,7 +145,8 @@ const RIBBON = {
     { label: 'Import', items: [['OPEN', 'Open DXF', 'open'], ['PASTECLIP', 'Paste', 'paste']] },
   ],
   Annotate: [
-    { label: 'Text', items: [['TEXT', 'Single Line', 'text']] },
+    { label: 'Text', items: [['MTEXT', 'Multiline Text', 'text'], { col: [['TEXT', 'Single Line', 'text'], ['TEXTEDIT', 'Edit Text', 'match']] }] },
+    { label: 'Tables', items: [['TABLE', 'Table', 'table']] },
     { label: 'Hatch', items: [['HATCH', 'Hatch', 'hatch']] },
     { label: 'Linetypes', items: [['LINETYPE', 'Linetypes', 'list'], ['LTSCALE', 'LT Scale', 'scale'], ['LWDISPLAY', 'Show LWT', 'line']] },
     { label: 'Dimensions', items: [['DIMLINEAR', 'Linear', 'dimlin'], ['DIMALIGNED', 'Aligned', 'dimali'], { col: [['DIMANGULAR', 'Angular', 'dimang'], ['DIMRADIUS', 'Radius', 'dimrad'], ['DIMDIAMETER', 'Diameter', 'dimdia']] }] },
@@ -141,7 +155,13 @@ const RIBBON = {
   ],
   View: [
     { label: 'Navigate', items: [['ZOOM_EXT', 'Extents', 'zoomext'], ['ZOOM', 'Window', 'zoomwin'], ['PAN', 'Pan', 'pan'], { col: [['ZOOM_IN', 'Zoom In', 'zoomin'], ['ZOOM_OUT', 'Zoom Out', 'zoomout']] }] },
+    { label: 'Views', items: [['ORBIT', '3D Orbit', 'orbit'], ['PLAN', 'Top (2D)', 'zoomext'], { col: [['EXTRUDE', 'Extrude', 'extrude'], ['VSCURRENT', 'Visual Style', 'shaded']] }] },
     { label: 'Palettes', items: [['PROPERTIES', 'Properties', 'props'], ['LAYER', 'Layers', 'layers'], ['TOGGLE_SIDE', 'Show/Hide', 'props']] },
+  ],
+  Parametric: [
+    { label: 'Geometric', items: [['AUTOCONSTRAIN', 'Auto Constrain', 'autocon'], { col: [['GCCOINCIDENT', 'Coincident', 'gccoin'], ['GCHORIZONTAL', 'Horizontal', 'gchor'], ['GCVERTICAL', 'Vertical', 'gcver']] }, { col: [['GCPARALLEL', 'Parallel', 'gcpar'], ['GCPERPENDICULAR', 'Perpendicular', 'gcperp'], ['GCEQUAL', 'Equal', 'gceq']] }, { col: [['GCFIX', 'Fix', 'lockOn'], ['CONSTRAINTBAR', 'Show/Hide', 'props']] }] },
+    { label: 'Dimensional', items: [['DCLINEAR', 'Length', 'dimlin']] },
+    { label: 'Manage', items: [['DELCON', 'Delete Constraints', 'erase']] },
   ],
   Manage: [
     { label: 'Actions', items: [['UNDO', 'Undo', 'undo'], ['REDO', 'Redo', 'redo'], ['SELECTALL', 'Select All', 'selall']] },
@@ -223,7 +243,7 @@ const UI = {
 
   exec(cmd) {
     switch (cmd) {
-      case 'ZOOM_EXT': zoomExtents(); return;
+      case 'ZOOM_EXT': if (App.v3d) { exit3D(); return; } zoomExtents(); return;
       case 'ZOOM_IN': zoomAt({ x: CW / 2, y: CH / 2 }, 1.5); return;
       case 'ZOOM_OUT': zoomAt({ x: CW / 2, y: CH / 2 }, 1 / 1.5); return;
       case 'TOGGLE_SIDE': this.toggleSide(); return;
@@ -327,6 +347,10 @@ const UI = {
   },
   recent: [],
 
+  refresh3D() {
+    $('viewport').classList.toggle('v3d', !!App.v3d);
+    $('vplabel').innerHTML = App.v3d ? '' : '[-][<span data-cmd="ZOOM_EXT">Top</span>][2D Wireframe]';
+  },
   refreshLayoutTabs() {
     const box = $('ltabs'); if (!box) return;
     const names = ['Model', ...layouts().map(l => l.name)];
@@ -415,6 +439,7 @@ const UI = {
     if (App.cmd) cancelReq();
     const before = snapshot();
     fn();
+    if (App.doc.cons && App.doc.cons.length) solveConstraints();
     if (snapshot() !== before) pushUndo(before);
     App.dirty = true;
     this.refreshProps(); this.refreshLayers();
@@ -560,6 +585,7 @@ const UI = {
         this.hideSuggest(); this.toggleOsnapMenu(false);
         if (inp.value) { inp.value = ''; this.updateDyn(); return; }
         if (App.req || App.cmd) { cancelReq(); return; }
+        if (App.v3d) { exit3D(); return; }
         App.win = null; App.hotGrip = null; App.sel.clear(); App.dirty = true; this.refreshProps();
         return;
       }
@@ -621,7 +647,8 @@ const UI = {
     const ltv = lts.size === 1 ? ([...lts][0] || undefined) : null, lwv = lws.size === 1 ? ([...lws][0] === '' ? undefined : [...lws][0]) : null;
     html += `<tr><td>Linetype</td><td><select data-p="lt">${ltv === null ? '<option selected>*VARIES*</option>' : ''}${ltOptions(ltv, true)}</select></td></tr>
       <tr><td>Linetype scale</td><td><input data-p="lts" value="${s.length === 1 ? fmt(s[0].lts || 1) : ''}"></td></tr>
-      <tr><td>Lineweight</td><td><select data-p="lw">${lwv === null ? '<option selected>*VARIES*</option>' : ''}${lwOptions(lwv, true)}</select></td></tr>`;
+      <tr><td>Lineweight</td><td><select data-p="lw">${lwv === null ? '<option selected>*VARIES*</option>' : ''}${lwOptions(lwv, true)}</select></td></tr>
+      <tr><td>3D height (thickness)</td><td><input data-p="thick" value="${s.length === 1 ? fmt(s[0].thick || 0) : ''}"></td></tr>`;
     if (s.length === 1) {
       html += `<tr><td colspan="2" class="psec">Geometry</td></tr>`;
       Types[s[0].type].props(s[0]).forEach((p, i) => {
@@ -639,6 +666,8 @@ const UI = {
     slw.onchange = () => this.change(() => s.forEach(e => { if (slw.value === '') delete e.lw; else e.lw = parseFloat(slw.value); }));
     const slts = body.querySelector('[data-p=lts]');
     slts.onchange = () => { const n = parseFloat(slts.value); if (n > 0) this.change(() => s.forEach(e => { if (n === 1) delete e.lts; else e.lts = n; })); };
+    const sth = body.querySelector('[data-p=thick]');
+    sth.onchange = () => { const n = parseFloat(sth.value); if (n >= 0) this.change(() => s.forEach(e => { if (n) e.thick = n; else delete e.thick; })); };
     const sc = body.querySelector('[data-p=color]');
     sc.onchange = () => this.change(() => s.forEach(e => { if (sc.value) e.color = sc.value; else delete e.color; }));
     const cp = body.querySelector('[data-p=colorpick]');

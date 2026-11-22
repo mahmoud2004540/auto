@@ -141,7 +141,7 @@ def('ELLIPSE', ['EL'], 'Draw an ellipse (as polyline)', async () => {
   addEnt(mk(rb));
 });
 
-def('TEXT', ['T', 'DT', 'DTEXT', 'MTEXT', 'MT'], 'Create single-line text', async () => {
+def('TEXT', ['DT', 'DTEXT'], 'Create single-line text', async () => {
   const p = await getPoint('Specify start point of text'); if (!isPt(p)) return;
   const h0 = App.doc.textH;
   const h = await getDist(`Specify height <${fmt(h0)}>`, { base: p, def: h0 }); if (typeof h !== 'number') return;
