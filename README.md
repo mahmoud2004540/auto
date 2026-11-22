@@ -176,6 +176,12 @@ host (e.g. GitHub Pages).
 - شريط الحالة فيه كمان: Transparency و Selection Cycling و Annotation Scale و Quick Properties.
 - لوحة Quick Properties بتظهر جنب الكائن المختار.
 
+## صفحة البداية (Start)
+- شكل مدير ملفات: New Drawing و Upload و New Folder، وأقسام Recent و Sample Files و My Drawings.
+- جدول بالأعمدة File Type و Name و Date Modified و Size و Owner، والترتيب بالضغط على العمود، والبحث في المجلد الحالي.
+- كليك يمين على الملف: فتح، إعادة تسمية، نقل لمجلد، حذف.
+- لوحة موارد على اليمين تقدر تقفلها بزر ».
+
 ## الحفظ
 - من جهازك (index.html): الملفات بتتنزّل عادي.
 - من رابط claude.ai: البرنامج بيستخدم خاصية التنزيل الخاصة بالمنصة؛ JSON و PDF و PNG و SVG بتتحفظ مباشرة، و DXF بيتحفظ جوه ملف ZIP (البرنامج نفسه بيفتح ملف الـ ZIP على طول).
