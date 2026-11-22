@@ -430,13 +430,23 @@ const UI = {
       };
     });
     const paper = App.space !== 'Model';
-    $('spaceLabel').textContent = paper ? 'PAPER' : 'MODEL';
+    $('spaceLabel').textContent = paper && App.vpActive == null ? 'PAPER' : 'MODEL';
     $('viewport').classList.toggle('paper', paper);
     const bar = $('layoutbar');
     bar.hidden = !paper;
     if (paper) {
       const L = curLayout(), G = layoutGeom(L);
-      bar.innerHTML = `<span><b>${esc(L.name)}</b></span><span>${esc(L.paper)} ${L.orient === 'P' ? 'Portrait' : 'Landscape'}</span><span>Scale <b>${esc(G.scaleLabel)}</b></span><button class="btn" data-cmd="PAGESETUP">Page Setup</button><button class="btn pri" data-cmd="PLOT">Plot PDF</button>`;
+      const vi = App.vpActive != null ? App.vpActive : App.vpSel;
+      const V0 = vi != null ? G.vps[vi] : null;
+      const cur = V0 ? (L.vports && L.vports[vi] && L.vports[vi].scale) || 'Fit' : null;
+      const scaleSel = V0 ? `<select id="vpScaleSel" title="Viewport scale">${(cur === 'custom' || (cur && !PLOT_SCALES.includes(cur)) ? `<option selected>${esc(V0.label)}</option>` : '')}${PLOT_SCALES.map(x => `<option ${x === cur ? 'selected' : ''}>${x}</option>`).join('')}</select>` : '';
+      bar.innerHTML = `<span><b>${esc(L.name)}</b> · ${esc(L.paper)} ${L.orient === 'P' ? 'Portrait' : 'Landscape'}</span>` +
+        (App.vpActive != null ? `<span class="vpstate">MODEL · Viewport ${vi + 1}</span>` : V0 ? `<span>Viewport ${vi + 1} selected</span>` : `<span>${G.vps.length} viewport(s)</span>`) +
+        (V0 ? `<span>Scale ${scaleSel}</span>` : '') +
+        (App.vpActive != null ? '<button class="btn" data-cmd="PSPACE">Paper</button>' : '<button class="btn" data-cmd="MVIEW">New Viewport</button>') +
+        `<button class="btn" data-cmd="PAGESETUP">Page Setup</button><button class="btn pri" data-cmd="PLOT">Plot</button>`;
+      const ss = document.getElementById('vpScaleSel');
+      if (ss) ss.onchange = () => { if (PLOT_SCALES.includes(ss.value)) setVpScale(vi, ss.value); ss.blur(); };
     }
   },
   deleteLayout(n) {
@@ -482,6 +492,7 @@ const UI = {
         L.name = nn; L.paper = $('ps_paper').value; L.orient = $('ps_orient').value; L.scale = $('ps_scale').value; L.units = $('ps_units').value;
         if ($('ps_ctr').value === 'ext') L.center = null;
         else { const c = parseCoord($('ps_xy').value, null); if (c) L.center = c; }
+        if (Array.isArray(L.vports) && L.vports[0]) { L.vports[0].scale = L.scale; L.vports[0].center = L.center; }
         L.title = { title: $('ps_title').value, project: $('ps_project').value, drawnBy: $('ps_drawn').value, date: $('ps_date').value, sheet: $('ps_sheet').value };
         if (App.space === old) { App.space = nn; if (App.views && App.views[old]) { App.views[nn] = App.views[old]; delete App.views[old]; } }
       });
@@ -671,6 +682,10 @@ const UI = {
         if (k === 'z' && ev.shiftKey) { ev.preventDefault(); runCommand('REDO'); return; }
         if (map[k] && !(isCmd && 'acvx'.includes(k) && inp.value)) { ev.preventDefault(); runCommand(map[k]); }
         return;
+      }
+      if (ev.key === 'Delete' && !App.cmd && App.space !== 'Model' && App.vpActive == null && App.vpSel != null) {
+        ev.preventDefault(); const L = curLayout(); materializeVports(L); const i = App.vpSel; App.vpSel = null;
+        this.change(() => { L.vports.splice(i, 1); }); this.refreshLayoutTabs(); this.log('Viewport deleted.'); return;
       }
       if ((ev.key === 'Delete' || (ev.key === 'Backspace' && !isCmd)) && !App.cmd && App.sel.size) { ev.preventDefault(); runCommand('ERASE'); return; }
       if (isCmd) return;

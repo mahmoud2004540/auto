@@ -147,6 +147,12 @@ host (e.g. GitHub Pages).
 - **Plot** (Ctrl+P): Printer (DWG To PDF / PNG)، مقاس الورق، Plot area (Extents / Display / Window / Layout)، Center the plot، Fit to paper أو مقياس، monochrome.ctb / acad.ctb، Portrait / Landscape، **Preview**.
 - **Attributes**: ATTDEF (ATT) بـ dialog، البلوك بيسأل عن القيم عند الإدراج، ودبل كليك يفتح Enhanced Attribute Editor (EATTEDIT). بتتحفظ في DXF.
 
+## Viewports و Block Editor
+- **MVIEW (MV)** في الـ Layout: Fit / 2 / 3 / 4 أو بركنين. كل Viewport له مقياس مستقل (من الشريط اللي فوق أو VPSCALE).
+- اضغط على إطار الـ Viewport لتحديده: المربعات الزرقا لتغيير حجمه، و Delete لحذفه.
+- **دبل كليك جوه Viewport = MSPACE (MS)**: ترسم وتعدّل وتكبّر جواه، والمقياس بيتحدّث. دبل كليك برّه أو **PS** = رجوع للورقة.
+- **BEDIT (BE)** أو دبل كليك على بلوك: Block Editor بتبويب خاص — Save Block، Close Block Editor (يسأل Save / Discard)، وكل البلوكات في الرسمة بتتحدّث. التعديل كله يتلغي بـ U.
+
 ## الحفظ
 - من جهازك (index.html): الملفات بتتنزّل عادي.
 - من رابط claude.ai: البرنامج بيستخدم خاصية التنزيل الخاصة بالمنصة؛ JSON و PDF و PNG و SVG بتتحفظ مباشرة، و DXF بيتحفظ جوه ملف ZIP (البرنامج نفسه بيفتح ملف الـ ZIP على طول).

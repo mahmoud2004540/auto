@@ -44,6 +44,7 @@ function newDoc() {
 App.doc = newDoc();
 
 // ---------- document helpers ----------
+function inModel() { return App.space === 'Model' || App.vpActive != null; }
 function layerOf(e) { return App.doc.layers.find(l => l.name === e.layer) || App.doc.layers[0]; }
 function entColor(e) { return e.color || layerOf(e).color; }
 function visible(e) { const l = layerOf(e); return l.on && !l.frozen; }
@@ -82,7 +83,7 @@ function pushUndo(before) {
   App.redo = [];
   App.modified = true;
   UI.refreshTitle();
-  try { localStorage.setItem('opendraft-autosave', snapshot()); } catch (_) { /* ignore */ }
+  if (!App.bedit) { try { localStorage.setItem('opendraft-autosave', snapshot()); } catch (_) { /* ignore */ } }
 }
 
 // ---------- view ----------
@@ -121,6 +122,7 @@ function zoomRect(r, margin = 0.08) {
   App.dirty = true;
 }
 function zoomExtents() {
+  if (App.vpActive != null) { setVpScale(App.vpActive, 'Fit'); return; }
   if (App.space !== 'Model') { zoomPaper(); return; }
   const ents = App.doc.ents.filter(e => visible(e) && !(typeof INFINITE !== 'undefined' && INFINITE.has(e.type)));
   if (!ents.length) { App.view = { cx: 100, cy: 70, s: Math.min(CW / 300, CH / 200) || 4 }; App.dirty = true; return; }
@@ -265,9 +267,9 @@ function render() {
   App.dirty = false;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (App.v3d) { render3D(); return; }
-  ctx.fillStyle = (App.opts && App.opts.bg) || '#212830'; ctx.fillRect(0, 0, CW, CH);
+  ctx.fillStyle = App.bedit ? '#2e333b' : (App.opts && App.opts.bg) || '#212830'; ctx.fillRect(0, 0, CW, CH);
   const paper = App.space !== 'Model';
-  if (paper) renderLayout();
+  if (paper) { syncActiveVp(); renderLayout(); }
   else if (App.modes.grid) drawGrid();
   const R = makeR();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -294,6 +296,20 @@ function render() {
     ctx.setLineDash([]); ctx.globalAlpha = 1;
   }
 
+  if (paper && App.vpActive != null) { // highlight selection inside the active viewport
+    const L = curLayout(), V0 = L && layoutGeom(L).vps[App.vpActive];
+    if (V0) {
+      const keep = App.view; App.view = App.paperView; const a = w2s({ x: V0.rect.x1, y: V0.rect.y2 }), b = w2s({ x: V0.rect.x2, y: V0.rect.y1 }); App.view = keep;
+      ctx.save(); ctx.beginPath(); ctx.rect(a.x, a.y, b.x - a.x, b.y - a.y); ctx.clip();
+      for (const e of App.doc.ents) {
+        if (!visible(e) || !(App.sel.has(e.id) || App.hover === e.id)) continue;
+        ctx.strokeStyle = '#2f7bff'; ctx.fillStyle = '#2f7bff'; ctx.lineWidth = App.sel.has(e.id) ? 2 : 2.5;
+        if (App.sel.has(e.id)) ctx.setLineDash([6, 4]);
+        Types[e.type].draw(R, e); ctx.setLineDash([]);
+      }
+      ctx.restore();
+    }
+  }
   if (!paper) drawConstraints(ctx);
 
   // temp / preview entities
@@ -323,7 +339,7 @@ function render() {
   }
 
   // grips
-  if (!App.req && !paper) {
+  if (!App.req && (!paper || App.vpActive != null)) {
     const ents = selEnts();
     if (ents.length <= 200) for (const e of ents) for (const g of Types[e.type].grips(e)) {
       const p = w2s(g.p);
@@ -359,6 +375,10 @@ function render() {
     ctx.fillStyle = 'rgba(30,30,30,0.85)'; ctx.fillRect(q.x + 10, q.y + 10, ctx.measureText(lab).width + 8, 16); ctx.fillStyle = '#4cd964'; ctx.fillText(lab, q.x + 14, q.y + 22);
   }
   if (App.req && App.modes.otrack) for (const a of App.acq) { const q = w2s(a); ctx.strokeStyle = '#4cd964'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(q.x - 4, q.y); ctx.lineTo(q.x + 4, q.y); ctx.moveTo(q.x, q.y - 4); ctx.lineTo(q.x, q.y + 4); ctx.stroke(); }
+  if (App.bedit) { // block base point marker
+    const q = w2s(App.bedit.base); ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(q.x - 9, q.y); ctx.lineTo(q.x + 9, q.y); ctx.moveTo(q.x, q.y - 9); ctx.lineTo(q.x, q.y + 9); ctx.stroke();
+    ctx.beginPath(); ctx.arc(q.x, q.y, 5, 0, TAU); ctx.stroke();
+  }
   if (App.snap) drawSnapMarker(App.snap);
   drawUCS();
 
@@ -458,7 +478,7 @@ function updateEffective() {
     }
   }
   App.otrack = null;
-  if (App.modes.osnap && !r.noSnap && App.space === 'Model') {
+  if (App.modes.osnap && !r.noSnap && inModel()) {
     const sn = findOsnap(raw, base);
     if (sn) {
       App.snap = sn; p = sn.p; App.track = null;
@@ -675,7 +695,7 @@ async function runCommand(input, queue) {
   if (!fn) { UI.log(`Unknown command "${String(input).toUpperCase()}". Press F1 or type HELP.`, 'err'); return; }
   if (App.cmd) { cancelReq(); await new Promise(r => setTimeout(r, 0)); }
   if (name && App.v3d && !V3_OK.has(name)) { UI.log(`${name} works in the 2D view. Press Esc or click TOP to return to plan view.`, 'err'); return; }
-  if (name && App.space !== 'Model' && !PAPER_OK.has(name)) { UI.log(`${name} works in Model space. Click the Model tab to draw and edit.`, 'err'); return; }
+  if (name && !inModel() && !PAPER_OK.has(name)) { UI.log(`${name} works in Model space. Click the Model tab to draw and edit.`, 'err'); return; }
   const transparent = name && Commands[name].noUndo;
   App.queue = queue || [];
   App.cmd = name || 'GRIP';
@@ -733,7 +753,7 @@ canvas.addEventListener('pointerdown', (ev) => {
     return;
   }
   if (ev.button === 2) {
-    if (!App.cmd && !App.req && !App.v3d && App.space === 'Model') { UI.contextMenu(ev.clientX, ev.clientY); return; }
+    if (!App.cmd && !App.req && !App.v3d && inModel()) { UI.contextMenu(ev.clientX, ev.clientY); return; }
     submitInput(''); return;
   }
   if (ev.button !== 0) return;
@@ -754,7 +774,17 @@ function handlePress(shift, ctrl) {
     return;
   }
   if (r && (r.kind === 'kw' || r.kind === 'mtext')) return;
-  if (!r && App.space !== 'Model') return;
+  if (!r && !inModel()) { // paper space: select / resize viewports
+    const L = curLayout(); if (!L) return;
+    const tol = px(6), G = layoutGeom(L);
+    if (App.vpSel != null && G.vps[App.vpSel]) {
+      const rr = G.vps[App.vpSel].rect;
+      for (const c of [{ x: rr.x1, y: rr.y1 }, { x: rr.x2, y: rr.y1 }, { x: rr.x2, y: rr.y2 }, { x: rr.x1, y: rr.y2 }]) if (V.dist(c, App.raw) < tol) { resizeVpCommand(App.vpSel, c); return; }
+    }
+    const i = vpAt(App.raw, tol);
+    App.vpSel = i >= 0 ? i : null; App.dirty = true; UI.refreshLayoutTabs();
+    return;
+  }
   if (App.cmd && !r) return;
   // selection (idle or select request)
   if (!r && App.sel.size) {
@@ -850,7 +880,7 @@ function onCursorMove() {
   updateEffective();
   updatePreview();
   const r = App.req;
-  if (App.space === 'Model' && (!r || r.kind === 'select' || r.kind === 'entity')) {
+  if (inModel() && (!r || r.kind === 'select' || r.kind === 'entity')) {
     const h = App.win ? null : pickEnt(App.raw, r && r.filter);
     App.hover = h ? h.id : null;
   } else App.hover = null;
@@ -885,8 +915,15 @@ canvas.addEventListener('wheel', (ev) => {
 }, { passive: false });
 canvas.addEventListener('auxclick', (ev) => { if (ev.button === 1 && ev.detail === 2) zoomExtents(); });
 canvas.addEventListener('dblclick', (ev) => {
-  if (App.req || App.v3d || App.space !== 'Model') return;
+  if (App.req || App.v3d) return;
   setCursorFromEvent(ev);
+  if (App.space !== 'Model') { // MSPACE / PSPACE by double-click
+    const paperPt = App.vpActive != null ? (() => { const keep = App.view; App.view = App.paperView; const q = s2w(App.scr); App.view = keep; return q; })() : App.raw;
+    const i = vpAt(paperPt);
+    if (i >= 0 && i !== App.vpActive) { enterVp(i); return; }
+    if (i < 0 && App.vpActive != null) { exitVp(); return; }
+    if (App.vpActive == null) return;
+  }
   const e = pickEnt(App.raw);
   if (e && ['text', 'mtext', 'table'].includes(e.type)) { const at = V.clone(App.raw); App.sel.clear(); runCommand(() => editEntityText(e, at)); }
   else if (e && e.type === 'insert' && blockAttdefs(e.name).length) { App.sel.clear(); editAttributes(e); }

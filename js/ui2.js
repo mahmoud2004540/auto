@@ -153,22 +153,23 @@ function plotCanvas(c, pxPerMm) {
   const saved = { view: { ...App.view }, CW, CH };
   try {
     CW = cv.width; CH = cv.height;
-    const k = L ? LG.k : G.k, r = L ? null : G.region;
-    const mapRect = L ? LG.vp : G.avail;
-    // view so that model maps onto paper pixels
-    const ctrPaper = L ? { x: (LG.vp.x1 + LG.vp.x2) / 2, y: (LG.vp.y1 + LG.vp.y2) / 2 } : G.toPaper({ x: (r.x1 + r.x2) / 2, y: (r.y1 + r.y2) / 2 });
-    const ctrModel = L ? LG.center : { x: (r.x1 + r.x2) / 2, y: (r.y1 + r.y2) / 2 };
-    App.view = { s: k * pxPerMm, cx: ctrModel.x - (ctrPaper.x - W / 2) / k, cy: ctrModel.y - (ctrPaper.y - H / 2) / k };
-    g.save(); g.beginPath(); g.rect(mapRect.x1 * pxPerMm, (H - mapRect.y2) * pxPerMm, (mapRect.x2 - mapRect.x1) * pxPerMm, (mapRect.y2 - mapRect.y1) * pxPerMm); g.clip();
     const R = makeR(g), mono = c.ctb === 'monochrome.ctb';
     const ents = App.doc.ents.filter(e => visible(e) && layerOf(e).plot !== false);
-    for (const e of ents.filter(x => x.type === 'hatch').concat(ents.filter(x => x.type !== 'hatch'))) {
-      let col = entColor(e); if (mono || col.toLowerCase() === '#ffffff') col = '#000000';
-      g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 1;
-      applyEntStyle(g, e, App.view.s, c.lw ? (lw) => Math.max(1, lw * pxPerMm) : null);
-      Types[e.type].draw(R, e); g.setLineDash([]);
+    const ordered = ents.filter(x => x.type === 'hatch').concat(ents.filter(x => x.type !== 'hatch'));
+    // each region: paper rectangle (mm), model point at paper point, scale k (paper mm per unit)
+    const regions = L ? LG.vps.map(V0 => ({ rect: V0.rect, ctrPaper: V0.vc, ctrModel: V0.center, k: V0.k }))
+      : [{ rect: G.avail, ctrPaper: G.toPaper({ x: (G.region.x1 + G.region.x2) / 2, y: (G.region.y1 + G.region.y2) / 2 }), ctrModel: { x: (G.region.x1 + G.region.x2) / 2, y: (G.region.y1 + G.region.y2) / 2 }, k: G.k }];
+    for (const rg of regions) {
+      App.view = { s: rg.k * pxPerMm, cx: rg.ctrModel.x - (rg.ctrPaper.x - W / 2) / rg.k, cy: rg.ctrModel.y - (rg.ctrPaper.y - H / 2) / rg.k };
+      g.save(); g.beginPath(); g.rect(rg.rect.x1 * pxPerMm, (H - rg.rect.y2) * pxPerMm, (rg.rect.x2 - rg.rect.x1) * pxPerMm, (rg.rect.y2 - rg.rect.y1) * pxPerMm); g.clip();
+      for (const e of ordered) {
+        let col = entColor(e); if (mono || col.toLowerCase() === '#ffffff') col = '#000000';
+        g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 1;
+        applyEntStyle(g, e, App.view.s, c.lw ? (lw) => Math.max(1, lw * pxPerMm) : null);
+        Types[e.type].draw(R, e); g.setLineDash([]);
+      }
+      g.restore();
     }
-    g.restore();
     if (L) {
       App.view = { s: pxPerMm, cx: W / 2, cy: H / 2 };
       g.strokeStyle = '#000'; g.fillStyle = '#000'; g.lineWidth = Math.max(1, 0.5 * pxPerMm);
@@ -325,3 +326,89 @@ document.addEventListener('click', (ev) => {
   const idx = [...document.querySelectorAll('#filetabs .ftab')].indexOf(ft);
   if (idx === 0) { ev.stopPropagation(); UI.showStart(true); } else if (!ev.target.closest('button')) UI.showStart(false);
 }, true);
+
+// ---------- Block Editor (BEDIT / BSAVE / BCLOSE) ----------
+function openBlockEditor(name) {
+  if (App.bedit) { UI.log('The Block Editor is already open.', 'err'); return; }
+  const def = App.doc.blocks && App.doc.blocks[name];
+  if (!def) { UI.log(`Block "${name}" not found.`, 'err'); return; }
+  if (App.space !== 'Model') switchSpace('Model');
+  if (App.v3d) exit3D();
+  App.bedit = { name, ents: App.doc.ents, view: { ...App.view }, undo: App.undo, redo: App.redo, modified: App.modified, base: { ...def.base } };
+  App.doc.ents = def.ents.map(e => { const c = entClone(e); c.id = App.doc.nextId++; return c; });
+  App.undo = []; App.redo = []; App.sel.clear();
+  zoomExtents(); App.view.s *= 0.8;
+  UI.setContext('bedit'); UI.refresh3D && UI.refresh3D();
+  document.getElementById('vplabel').textContent = `[-][Block Editor: ${name}]`;
+  UI.log(`Block Editor: editing "${name}". Draw and modify as usual, then Save Block or Close Block Editor.`, 'info');
+  App.dirty = true;
+}
+function saveBlockEdits() {
+  const b = App.bedit; if (!b) return;
+  App.doc.blocks[b.name].ents = App.doc.ents.map(e => { const c = entClone(e); delete c.id; return c; });
+  b.saved = true;
+  UI.log(`Block "${b.name}" saved.`, 'info');
+}
+function closeBlockEditor(save) {
+  const b = App.bedit; if (!b) return;
+  if (App.req || App.cmd) cancelReq();
+  const newEnts = save ? App.doc.ents.map(e => { const c = entClone(e); delete c.id; return c; }) : null;
+  App.doc.ents = b.ents; App.undo = b.undo; App.redo = b.redo; App.view = b.view;
+  App.bedit = null;
+  if (newEnts) {
+    const before = snapshot();
+    App.doc.blocks[b.name].ents = newEnts;
+    pushUndo(before);
+  } else if (b.saved) App.modified = true;
+  App.doc.ents.forEach(e => { if (e.type === 'insert') invalidate(e); });
+  App.sel.clear(); UI.setContext(null); UI.refreshAll();
+  document.getElementById('vplabel').innerHTML = '[-][<span data-cmd="ZOOM_EXT">Top</span>][2D Wireframe]';
+  App.dirty = true;
+}
+function askCloseBlockEditor() {
+  const b = App.bedit; if (!b) return;
+  UI.dialog('Block - Changes Not Saved', `<p>Save changes to block <b>${esc(b.name)}</b>?</p><p class="muted">All block references in the drawing update to the saved definition.</p>`, () => { closeBlockEditor(true); }, 'Save the changes');
+  const foot = document.querySelector('#dlgBody .btnrow');
+  foot.insertAdjacentHTML('afterbegin', '<button class="btn" id="be_discard" style="margin-right:auto">Discard the changes</button>');
+  document.getElementById('be_discard').onclick = () => { document.getElementById('dlgModal').hidden = true; closeBlockEditor(false); };
+}
+CONTEXT_TABS.bedit = {
+  label: 'Block Editor',
+  html: () => `<div class="rgroup"><div class="items"><button class="rbtn" data-be="save">${icon('save')}<span>Save Block</span></button></div><div class="glabel">Open/Save</div></div>
+    <div class="rgroup"><div class="items"><button class="rbtn" data-cmd="ATTDEF">${icon('text')}<span>Attribute Definition</span></button><div class="smallcol"><button class="rbtn small" data-cmd="LINE">${icon('line')}<span>Line</span></button><button class="rbtn small" data-cmd="CIRCLE">${icon('circle')}<span>Circle</span></button><button class="rbtn small" data-cmd="PLINE">${icon('pline')}<span>Polyline</span></button></div><div class="smallcol"><button class="rbtn small" data-cmd="MOVE">${icon('move')}<span>Move</span></button><button class="rbtn small" data-cmd="ERASE">${icon('erase')}<span>Erase</span></button><button class="rbtn small" data-cmd="TRIM">${icon('trim')}<span>Trim</span></button></div></div><div class="glabel">Geometry</div></div>
+    <div class="rgroup"><div class="items"><div class="layerctl"><div class="muted" style="font-size:11px">Editing block</div><b style="font-size:13px">${esc(App.bedit ? App.bedit.name : '')}</b><div class="muted" style="font-size:11px">Base point ${App.bedit ? fmt(App.bedit.base.x) + ', ' + fmt(App.bedit.base.y) : ''}</div></div></div><div class="glabel">Block</div></div>
+    <div class="rgroup"><div class="items"><button class="rbtn" data-be="close">${icon('erase')}<span>Close Block Editor</span></button></div><div class="glabel">Close</div></div>`,
+  bind: (root) => {
+    root.querySelector('[data-be=save]').onclick = () => saveBlockEdits();
+    root.querySelector('[data-be=close]').onclick = () => askCloseBlockEditor();
+  },
+};
+def('BEDIT', ['BE'], 'Block Editor: edit a block definition', async () => {
+  if (App.bedit) { UI.log('The Block Editor is already open.', 'err'); return; }
+  const pre = selEnts().find(e => e.type === 'insert');
+  if (pre) { openBlockEditor(pre.name); return; }
+  const names = Object.keys(App.doc.blocks || {}).filter(n => !n.startsWith('*')).sort();
+  if (!names.length) { UI.log('This drawing has no blocks.', 'err'); return; }
+  await new Promise((res) => {
+    UI.dialog('Edit Block Definition', `<div class="bedlg"><div class="bedlist">${names.map((n, i) => `<button class="bedit-item${i === 0 ? ' on' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div><div class="bedprev" id="bedPrev">${entsSVG(App.doc.blocks[names[0]].ents)}</div></div>`, () => {
+      const on = document.querySelector('.bedit-item.on'); if (on) setTimeout(() => openBlockEditor(on.dataset.n), 0); res();
+    });
+    document.querySelectorAll('.bedit-item').forEach(b => {
+      b.onclick = () => { document.querySelectorAll('.bedit-item').forEach(x => x.classList.toggle('on', x === b)); document.getElementById('bedPrev').innerHTML = entsSVG(App.doc.blocks[b.dataset.n].ents); };
+      b.ondblclick = () => { document.getElementById('dlgOk').click(); };
+    });
+    const done = () => res(); document.getElementById('dlgCancel').addEventListener('click', done); document.getElementById('dlgClose').addEventListener('click', done);
+  });
+}, { noUndo: true, noRepeat: true });
+def('BSAVE', [], 'Save the block being edited', async () => { if (!App.bedit) { UI.log('The Block Editor is not open.', 'err'); return; } saveBlockEdits(); }, { noUndo: true, noRepeat: true });
+def('BCLOSE', [], 'Close the Block Editor', async () => { if (!App.bedit) { UI.log('The Block Editor is not open.', 'err'); return; } askCloseBlockEditor(); }, { noUndo: true, noRepeat: true });
+{
+  // double-click a block without attributes → Block Editor (AutoCAD behavior)
+  canvas.addEventListener('dblclick', () => {
+    if (App.req || App.v3d || App.bedit || !inModel()) return;
+    const e = pickEnt(App.raw);
+    if (e && e.type === 'insert' && !blockAttdefs(e.name).length && !e.name.startsWith('*')) openBlockEditor(e.name);
+  });
+  const guard = (fn) => function (...a) { if (App.bedit) { UI.log('Close the Block Editor first (BCLOSE).', 'err'); return; } return fn.apply(this, a); };
+  IO.openDoc = guard(IO.openDoc); IO.newDrawing = guard(IO.newDrawing);
+}
