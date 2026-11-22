@@ -437,3 +437,101 @@ svg.ic .fb { fill: #4aa8ff; stroke: none; } svg.ic .fy { fill: #f5c542; stroke: 
 .sp2btn.wide { flex: none; }
 .sp2search svg { width: 15px; height: 15px; flex: none; }
 .sptable .ft svg { width: 22px; height: 22px; vertical-align: middle; }
+
+/* ===== Web workspace ===== */
+#wbHead, #wbInfo, #wbTools, #wbRail, #wbPanel, #wbBar, #wbCube, #wbVpCtl, #wbCmdBtns, #wbToggles { display: none; }
+#app.webui { --wb0: #1b2546; --wb1: #22305a; --wb2: #2c3d6b; --wb3: #3a4d80; --wbline: #3e5287; --wbacc: #3d8bff; }
+#app.webui #titlebar, #app.webui #ribbon, #app.webui #filetabs, #app.webui #side, #app.webui #navbar, #app.webui #compass { display: none !important; }
+#app.webui #wbHead { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; background: var(--wb0); color: #fff; flex: none; }
+.wblogo { width: 28px; height: 28px; border-radius: 3px; background: #d8343f; display: grid; place-items: center; font-weight: 800; font-size: 12px; }
+.wbcrumb { font-size: 14px; } .wbcrumb a { cursor: pointer; color: #dfe6f7; } .wbcrumb i { color: #8ea0c8; font-style: normal; margin: 0 4px; }
+.wbsp { flex: 1; }
+.wbsave { border: 1px solid #8ea0c8; padding: 5px 18px; color: #fff; border-radius: 2px; font-weight: 600; }
+.wbsave:hover { background: rgba(255,255,255,.08); }
+.wbic { width: 32px; height: 32px; display: grid; place-items: center; color: #c9d4ee; }
+.wbic .ic { width: 20px; height: 20px; }
+.wbav { width: 28px; height: 28px; border-radius: 50%; background: #3a4d80; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+#app.webui #wbInfo:not([hidden]) { display: flex; align-items: center; gap: 12px; background: var(--wb1); border-bottom: 1px solid var(--wbline); padding-right: 10px; height: 34px; flex: none; color: #fff; font-size: 13.5px; }
+.wbi { background: var(--wbacc); width: 34px; align-self: stretch; display: grid; place-items: center; font-weight: 700; font-style: italic; }
+#wbInfo button { padding: 3px 12px; border: 1px solid #8ea0c8; color: #fff; border-radius: 2px; }
+#wbInfo #wbLearn { background: var(--wbacc); border-color: var(--wbacc); }
+#wbInfo #wbInfoX { border: 0; padding: 3px 6px; }
+#app.webui #wbTools { display: flex; background: var(--wb1); padding: 4px 8px 6px; flex: none; color: #fff; border-bottom: 1px solid var(--wbline); }
+.wbg { padding: 0 14px; border-right: 1px solid var(--wbline); }
+.wbg:last-child { border: 0; }
+.wbg h5 { margin: 2px 0 4px; text-align: center; font-size: 13px; font-weight: 600; }
+.wbg > div { display: flex; flex-wrap: wrap; max-width: 560px; }
+.wbt { width: 40px; height: 38px; display: grid; place-items: center; color: #e6ecfa; border-radius: 3px; }
+.wbt:hover { background: var(--wb3); }
+.wbt .ic { width: 24px; height: 24px; }
+#app.webui #wbRail { display: flex; flex-direction: column; gap: 6px; width: 52px; flex: none; background: var(--wb2); padding-top: 10px; align-items: center; }
+#wbRail button { width: 44px; height: 44px; display: grid; place-items: center; color: #dfe6f7; border-radius: 3px; }
+#wbRail button.on { background: var(--wb3); box-shadow: inset 3px 0 0 var(--wbacc); }
+#wbRail button:hover { background: var(--wb3); }
+#wbRail .ic { width: 24px; height: 24px; }
+#app.webui #wbPanel:not([hidden]) { display: flex; flex-direction: column; width: 300px; flex: none; background: var(--wb2); color: #fff; border-right: 1px solid var(--wbline); min-height: 0; }
+.wbph { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--wbline); }
+.wbph h3 { margin: 0; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.wbplus { color: #8fb8ff; font-size: 22px; line-height: 1; }
+.wbcol { color: #c9d4ee; font-size: 18px; }
+.wbpb { flex: 1; overflow-y: auto; padding: 8px 10px; }
+#app.webui .wbpb .body { background: transparent; color: #fff; }
+#app.webui .wbpb select, #app.webui .wbpb input { background: transparent; color: #fff; border: 0; border-bottom: 1px solid #8ea0c8; border-radius: 0; }
+#app.webui .wbpb select option { background: var(--wb1); }
+.wbsec h4, .wbcat { margin: 14px 0 8px; font-size: 15px; font-weight: 600; border-top: 1px solid var(--wbline); padding-top: 12px; }
+.wbkv { display: grid; grid-template-columns: 90px 1fr; gap: 8px 10px; align-items: center; font-size: 13px; }
+.wbtabs { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px 10px; border-bottom: 1px solid var(--wbline); margin-bottom: 10px; font-weight: 600; }
+.wbtabs button { color: #8fb8ff; border-bottom: 2px solid #8fb8ff; padding: 2px 6px; }
+.wbblk { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.wbbt { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px; border-radius: 3px; background: var(--wb1); color: #dfe6f7; font-size: 11px; min-width: 0; }
+.wbbt:hover { background: var(--wb3); }
+.wbbt svg { width: 100%; height: 58px; color: #e6ecfa; }
+.wbbt span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wbempty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 30px 10px; grid-column: 1 / -1; }
+.wbempty p { margin: 0; color: #c9d4ee; font-size: 13px; line-height: 1.45; }
+.wbpri { background: var(--wbacc); color: #fff; padding: 7px 18px; border-radius: 2px; font-weight: 600; margin-top: 8px; }
+.wbchk div { padding: 8px 4px; border-bottom: 1px solid var(--wbline); display: flex; gap: 8px; align-items: center; }
+.wbchk span { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: #2fa36b; }
+.wbchk .bad span { background: #d98a1e; }
+.wbchk a { color: #8fb8ff; cursor: pointer; margin-left: auto; }
+#app.webui #wbBar { display: flex; align-items: center; gap: 6px; position: absolute; left: 0; right: 0; top: 0; height: 42px; padding: 0 12px; background: var(--wb1); z-index: 6; color: #fff; border-bottom: 1px solid var(--wbline); }
+#wbBar > button { width: 34px; height: 34px; display: grid; place-items: center; color: #dfe6f7; border-radius: 3px; }
+#wbBar > button:hover { background: var(--wb3); }
+#wbBar .ic { width: 22px; height: 22px; }
+.wbdiv { width: 1px; height: 24px; background: var(--wbline); margin: 0 8px; }
+.wblay { display: flex; align-items: center; gap: 8px; min-width: 230px; padding: 4px 6px; border-bottom: 1px solid #8ea0c8; color: #fff; font-weight: 600; }
+.wblay i { width: 14px; height: 14px; border: 1px solid #fff; }
+.wblay span { margin-left: auto; color: #c9d4ee; }
+.wblink { display: flex; align-items: center; gap: 6px; color: #8fb8ff; cursor: pointer; font-weight: 600; margin-left: 14px; }
+.wblink.dim { color: #9aa8c7; }
+.wblink .ic { width: 18px; height: 18px; }
+#app.webui #vplabel { top: 50px; left: 12px; background: transparent; display: flex; gap: 6px; }
+#app.webui #vplabel .chip { background: var(--wb2); color: #8fb8ff; padding: 4px 12px; border-radius: 2px; font-weight: 600; font-size: 13px; cursor: pointer; }
+#app.webui #wbCube { display: grid; place-items: center; position: absolute; right: 26px; top: 120px; width: 50px; height: 50px; background: #c3cde3; color: #64748f; font-size: 12px; z-index: 5; border: 1px solid #fff; box-shadow: 2px 2px 0 #8a98b8; }
+#app.webui #wbVpCtl { display: flex; gap: 8px; position: absolute; right: 14px; top: 52px; z-index: 5; }
+#wbVpCtl button { color: #fff; font-size: 18px; width: 26px; }
+#app.webui.wbmax #wbHead, #app.webui.wbmax #wbInfo, #app.webui.wbmax #wbTools, #app.webui.wbmax #wbPanel, #app.webui.wbmax #wbRail { display: none !important; }
+#app.webui #cmdline { left: 0; right: 0; bottom: 0; width: auto; transform: none; max-width: none; border-radius: 0; background: var(--wb1); border: 0; border-top: 2px solid var(--wbacc); box-shadow: none; }
+#app.webui #cmdrow { background: transparent; height: 38px; }
+#app.webui #cmdrow .clbtn { display: none; }
+#app.webui #cmdrow .chev { color: #8fb8ff; font-weight: 700; }
+#app.webui #prompt { color: #fff; }
+#app.webui #prompt .kw { display: inline-block; background: #3a5590; border: 1px solid #5d7cc0; color: #e6ecfa; padding: 0 6px; border-radius: 2px; margin: 0 2px; font-size: 12px; text-decoration: none; }
+#app.webui #wbCmdBtns { display: flex; gap: 6px; margin-left: auto; padding-right: 6px; }
+#wbCmdBtns button { height: 28px; padding: 0 14px; border-radius: 2px; background: #6a7799; color: #fff; }
+#wbCmdBtns #wbOk { background: var(--wbacc); }
+#app.webui #status { background: var(--wb1); border-top: 1px solid var(--wbline); height: 40px; }
+#app.webui #status > *:not(#ltabs):not(#wbToggles) { display: none !important; }
+#app.webui #ltabs .lt { padding: 5px 14px; color: #e6ecfa; background: transparent; border: 0; border-radius: 2px; font-size: 14px; }
+#app.webui #ltabs .lt.active { background: var(--wbacc); color: #fff; }
+#app.webui #wbToggles { display: flex; align-items: center; gap: 2px; margin-left: auto; padding-right: 8px; }
+.wbtx { font-size: 11.5px; font-weight: 700; letter-spacing: .5px; padding: 5px 8px; color: #e6ecfa; border-radius: 2px; }
+.wbtx.on { background: #3a5aa6; color: #fff; }
+.wbcar, .wbmore { color: #e6ecfa; padding: 4px 6px; margin-right: 8px; }
+#wbBar > button.wblay { width: auto; min-width: 230px; height: 30px; display: flex; place-items: initial; border-radius: 0; }
+#app.webui #history:not(.big) { display: none; }
+#app.webui #history.big { background: var(--wb1); color: #dfe6f7; }
+#app.webui #cmdrow, #app.webui #cmdinput, #app.webui #prompt { font-family: inherit; font-size: 14px; }
+#app.webui #prompt b { font-weight: 700; margin-right: 2px; }
+#app.webui #dyn { background: #f1f4fa; color: #33415f; border: 1px solid #b8c4dc; border-radius: 2px; }
+#app.webui #cmdrow *, #app.webui #prompt { font-family: "Segoe UI", system-ui, sans-serif !important; }
