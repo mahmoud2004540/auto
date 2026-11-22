@@ -45,8 +45,10 @@ function entColor(e) { return e.color || layerOf(e).color; }
 function visible(e) { return layerOf(e).on; }
 function editable(e) { const l = layerOf(e); return l.on && !l.locked; }
 function addEnt(e) {
-  e.id = App.doc.nextId++;
   if (!e.layer) e.layer = App.doc.cur;
+  if (!e.color && App.doc.curColor && !e._keepColor && e.id === undefined) e.color = App.doc.curColor;
+  delete e._keepColor;
+  e.id = App.doc.nextId++;
   App.doc.ents.push(e);
   App.dirty = true;
   return e;
@@ -299,7 +301,7 @@ function render() {
     const showCross = !App.req || ['point', 'dist', 'angle'].includes(App.req.kind);
     ctx.beginPath();
     if (showCross) {
-      const L = 2000;
+      const L = 40;
       ctx.moveTo(c.x - L, Math.round(c.y) + 0.5); ctx.lineTo(c.x + L, Math.round(c.y) + 0.5);
       ctx.moveTo(Math.round(c.x) + 0.5, c.y - L); ctx.lineTo(Math.round(c.x) + 0.5, c.y + L);
     }

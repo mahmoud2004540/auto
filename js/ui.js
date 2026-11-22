@@ -46,6 +46,8 @@ const ICONS = {
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
   redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/>',
   props: '<rect x="4" y="3" width="16" height="18"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  paste: '<rect x="5" y="4" width="14" height="17" rx="1"/><path d="M9 4V2h6v2M9 10h6M9 14h6"/>',
+  cut: '<circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8 16 18 3M16 16 6 3"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/>',
 };
 const icon = (k) => `<svg class="ic" viewBox="0 0 24 24">${ICONS[k] || ''}</svg>`;
@@ -58,15 +60,29 @@ const RIBBON = {
       { col: [['MOVE', 'Move', 'move'], ['COPY', 'Copy', 'copy'], ['ROTATE', 'Rotate', 'rotate']] },
       { col: [['MIRROR', 'Mirror', 'mirror'], ['SCALE', 'Scale', 'scale'], ['OFFSET', 'Offset', 'offset']] },
       { col: [['TRIM', 'Trim', 'trim'], ['EXTEND', 'Extend', 'extend'], ['FILLET', 'Fillet', 'fillet']] },
-      { col: [['ARRAYRECT', 'Array', 'array'], ['ARRAYPOLAR', 'Polar Array', 'arrayp'], ['EXPLODE', 'Explode', 'explode']] },
-      { col: [['ERASE', 'Erase', 'erase'], ['MATCHPROP', 'Match Prop', 'match']] }] },
-    { label: 'Annotation', items: [['TEXT', 'Text', 'text'], { col: [['DIMLINEAR', 'Linear', 'dimlin'], ['DIMALIGNED', 'Aligned', 'dimali']] }] },
-    { label: 'Layers', items: [{ layerctl: true }] },
-    { label: 'Utilities', items: [{ col: [['DIST', 'Measure', 'dist'], ['AREA', 'Area', 'area'], ['ID', 'ID Point', 'id']] }, { col: [['LIST', 'List', 'list'], ['SELECTALL', 'Select All', 'selall']] }] },
+      { col: [['ARRAYRECT', 'Array', 'array'], ['EXPLODE', 'Explode', 'explode'], ['ERASE', 'Erase', 'erase']] }] },
+    { label: 'Annotation', items: [['TEXT', 'Text', 'text'], ['DIMLINEAR', 'Dimension', 'dimlin']] },
+    { label: 'Layers', items: [['LAYER', 'Layer Properties', 'layers'], { layerctl: true }] },
+    { label: 'Properties', items: [['MATCHPROP', 'Match Properties', 'match'], { colorctl: true }] },
+    { label: 'Utilities', items: [['DIST', 'Measure', 'dist'], { col: [['AREA', 'Area', 'area'], ['ID', 'ID Point', 'id'], ['LIST', 'List', 'list']] }] },
+    { label: 'Clipboard', items: [['PASTECLIP', 'Paste', 'paste'], { col: [['COPYCLIP', 'Copy Clip', 'copy'], ['CUTCLIP', 'Cut', 'cut']] }] },
+    { label: 'View', items: [['ZOOM_EXT', 'Extents', 'zoomext']] },
+  ],
+  Insert: [
+    { label: 'Import', items: [['OPEN', 'Open DXF', 'open'], ['PASTECLIP', 'Paste', 'paste']] },
+    { label: 'Array', items: [['ARRAYRECT', 'Rectangular', 'array'], ['ARRAYPOLAR', 'Polar', 'arrayp'], ['COPY', 'Path Copy', 'copy']] },
+  ],
+  Annotate: [
+    { label: 'Text', items: [['TEXT', 'Single Line', 'text']] },
+    { label: 'Dimensions', items: [['DIMLINEAR', 'Linear', 'dimlin'], ['DIMALIGNED', 'Aligned', 'dimali']] },
+    { label: 'Inquiry', items: [['DIST', 'Distance', 'dist'], ['AREA', 'Area', 'area']] },
   ],
   View: [
     { label: 'Navigate', items: [['ZOOM_EXT', 'Extents', 'zoomext'], ['ZOOM', 'Window', 'zoomwin'], ['PAN', 'Pan', 'pan'], { col: [['ZOOM_IN', 'Zoom In', 'zoomin'], ['ZOOM_OUT', 'Zoom Out', 'zoomout']] }] },
-    { label: 'Palettes', items: [['TOGGLE_SIDE', 'Palettes', 'props'], ['LAYER', 'Layers', 'layers']] },
+    { label: 'Palettes', items: [['PROPERTIES', 'Properties', 'props'], ['LAYER', 'Layers', 'layers'], ['TOGGLE_SIDE', 'Show/Hide', 'props']] },
+  ],
+  Manage: [
+    { label: 'Actions', items: [['UNDO', 'Undo', 'undo'], ['REDO', 'Redo', 'redo'], ['SELECTALL', 'Select All', 'selall']] },
     { label: 'Help', items: [['HELP', 'Commands', 'help']] },
   ],
   Output: [
@@ -99,6 +115,11 @@ const UI = {
       if (col) { const body = $(col.dataset.target); body.classList.toggle('hidden'); col.textContent = body.classList.contains('hidden') ? '+' : '–'; }
       if (!ev.target.closest('#osnapMenu') && !ev.target.closest('#osnapMenuBtn')) this.toggleOsnapMenu(false);
       if (ev.target.closest('#osnapMenuBtn')) this.toggleOsnapMenu();
+      const lt = ev.target.closest('[data-layout]');
+      if (lt) {
+        if (lt.dataset.layout === 'Model') return;
+        this.log('Paper space layouts are not available yet — drawing stays in Model space.', 'err');
+      }
       const sg = ev.target.closest('#suggest div');
       if (sg) { $('cmdinput').value = ''; this.hideSuggest(); runCommand(sg.dataset.name); }
     });
@@ -132,7 +153,8 @@ const UI = {
     $('ribbonPanels').innerHTML = RIBBON[this.tab].map(g => `<div class="rgroup"><div class="items">${g.items.map(it => {
       if (Array.isArray(it)) return btn(it);
       if (it.col) return `<div class="smallcol">${it.col.map(x => btn(x, true)).join('')}</div>`;
-      if (it.layerctl) return `<div class="layerctl"><select id="ribbonLayer" title="Current layer"></select><button class="rbtn small" data-cmd="LAYER">${icon('layers')}<span>Layer Properties</span></button></div>`;
+      if (it.colorctl) return `<div class="layerctl"><select id="ribbonColor" title="Color for new objects">${COLORS.map(([n, c]) => `<option value="${c}">${n}</option>`).join('')}</select><select disabled title="Linetype"><option>Continuous — ByLayer</option></select><select disabled title="Lineweight"><option>Default — ByLayer</option></select></div>`;
+      if (it.layerctl) return `<div class="layerctl"><select id="ribbonLayer" title="Current layer"></select><div class="muted" style="font-size:11px">Current layer</div></div>`;
       return '';
     }).join('')}</div><div class="glabel">${g.label}</div></div>`).join('');
     const rl = $('ribbonLayer');
@@ -141,6 +163,11 @@ const UI = {
       this.change(() => { if (s.length) s.forEach(e => { e.layer = v; }); else App.doc.cur = v; });
       rl.blur();
     };
+    const rc = $('ribbonColor');
+    if (rc) {
+      rc.value = App.doc.curColor || '';
+      rc.onchange = () => { const s = selEnts(); this.change(() => { if (s.length) s.forEach(e => { if (rc.value) e.color = rc.value; else delete e.color; }); else App.doc.curColor = rc.value || undefined; }); rc.blur(); };
+    }
     this.refreshLayers();
   },
 
@@ -155,7 +182,7 @@ const UI = {
   },
 
   refreshAll() { this.refreshLayers(); this.refreshProps(); this.refreshStatus(); this.refreshTitle(); this.setPrompt('', null); },
-  refreshTitle() { $('doctitle').textContent = `${App.fileName}${App.modified ? ' *' : ''}  —  OpenDraft CAD`; document.title = `${App.fileName}${App.modified ? '*' : ''} - OpenDraft CAD`; },
+  refreshTitle() { $('ftabName').textContent = App.fileName + (App.modified ? '*' : ''); $('doctitle').textContent = `${App.fileName}${App.modified ? ' *' : ''}  —  OpenDraft CAD`; document.title = `${App.fileName}${App.modified ? '*' : ''} - OpenDraft CAD`; },
 
   refreshStatus() {
     document.querySelectorAll('[data-mode]').forEach(b => b.classList.toggle('on', !!App.modes[b.dataset.mode]));
@@ -300,9 +327,9 @@ const UI = {
       const mod = ev.ctrlKey || ev.metaKey;
       if (mod) {
         const k = ev.key.toLowerCase();
-        const map = { z: 'UNDO', y: 'REDO', s: 'SAVE', o: 'OPEN', a: 'SELECTALL', n: 'NEW', p: 'PNGOUT' };
+        const map = { z: 'UNDO', y: 'REDO', s: 'SAVE', o: 'OPEN', a: 'SELECTALL', n: 'NEW', p: 'PNGOUT', c: 'COPYCLIP', v: 'PASTECLIP', x: 'CUTCLIP' };
         if (k === 'z' && ev.shiftKey) { ev.preventDefault(); runCommand('REDO'); return; }
-        if (map[k] && !(isCmd && k === 'a' && inp.value)) { ev.preventDefault(); runCommand(map[k]); }
+        if (map[k] && !(isCmd && 'acvx'.includes(k) && inp.value)) { ev.preventDefault(); runCommand(map[k]); }
         return;
       }
       if ((ev.key === 'Delete' || (ev.key === 'Backspace' && !isCmd)) && !App.cmd && App.sel.size) { ev.preventDefault(); runCommand('ERASE'); return; }

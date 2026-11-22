@@ -28,19 +28,41 @@
     <div class="panels" id="ribbonPanels"></div>
   </nav>
 
+  <div id="filetabs">
+    <button id="appMenuBtn" title="Menu" data-cmd="HELP">&#9776;</button>
+    <span class="ftab" data-cmd="HELP">Start</span>
+    <span class="ftab active"><b id="ftabName">Drawing1</b><button data-cmd="NEW" title="Close / new drawing">&#10005;</button></span>
+    <button class="ftabadd" data-cmd="NEW" title="New drawing">+</button>
+  </div>
+
   <main id="main">
     <div id="viewport">
       <canvas id="cad"></canvas>
       <div id="dyn" hidden></div>
       <div id="navbar">
         <button data-cmd="ZOOM_EXT" title="Zoom extents (double-click wheel)" data-icon="zoomext"></button>
+        <button data-cmd="ZOOM" title="Zoom window" data-icon="zoomwin"></button>
         <button data-cmd="ZOOM_IN" title="Zoom in" data-icon="zoomin"></button>
         <button data-cmd="ZOOM_OUT" title="Zoom out" data-icon="zoomout"></button>
         <button data-cmd="PAN" title="Pan (middle mouse / space+drag)" data-icon="pan"></button>
       </div>
-      <div id="tabsbar"><span class="mtab active">Model</span></div>
+      <div id="vplabel">[-][<span data-cmd="ZOOM_EXT">Top</span>][2D Wireframe]</div>
+      <div id="compass" title="Click TOP to zoom extents">
+        <span class="n">N</span><span class="s">S</span><span class="w">W</span><span class="e">E</span>
+        <div class="ring"></div><button class="top" data-cmd="ZOOM_EXT">TOP</button>
+        <div class="wcs">WCS</div>
+      </div>
+      <div id="cmdline">
+        <div id="history"></div>
+        <div id="suggest" hidden></div>
+        <div id="cmdrow">
+          <span class="chev">&gt;_</span>
+          <span id="prompt">Type a command</span>
+          <input id="cmdinput" autocomplete="off" spellcheck="false" autocapitalize="off">
+        </div>
+      </div>
     </div>
-    <aside id="side">
+    <aside id="side" hidden>
       <section class="pal" id="palProps">
         <h3><span>Properties</span><button class="collapse" data-target="propsBody">–</button></h3>
         <div class="body" id="propsBody"></div>
@@ -52,17 +74,15 @@
     </aside>
   </main>
 
-  <div id="cmdline">
-    <div id="history"></div>
-    <div id="suggest" hidden></div>
-    <div id="cmdrow">
-      <span class="chev">&gt;_</span>
-      <span id="prompt">Type a command</span>
-      <input id="cmdinput" autocomplete="off" spellcheck="false" autocapitalize="off">
-    </div>
-  </div>
-
   <footer id="status">
+    <div class="ltabs">
+      <button class="lt-menu" data-cmd="TOGGLE_SIDE" title="Show/hide palettes">&#9776;</button>
+      <button class="lt active" data-layout="Model">Model</button>
+      <button class="lt" data-layout="Layout1">Layout1</button>
+      <button class="lt" data-layout="Layout2">Layout2</button>
+      <button class="lt" data-layout="+">+</button>
+    </div>
+    <span id="selinfo"></span>
     <span id="coords">0.0000, 0.0000</span>
     <span class="model">MODEL</span>
     <div class="toggles">
@@ -73,8 +93,8 @@
       <button data-mode="osnap" title="Object snap (F3)">OSNAP</button>
       <button id="osnapMenuBtn" title="Object snap settings">▾</button>
       <button data-mode="dyn" title="Dynamic input (F12)">DYN</button>
+      <button data-cmd="PROPERTIES" title="Properties palette">&#9881;</button>
     </div>
-    <span id="selinfo"></span>
   </footer>
 
   <div id="osnapMenu" hidden></div>

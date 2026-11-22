@@ -600,3 +600,25 @@ def('DXFOUT', ['EXPORT', 'DXF'], 'Export DXF', async () => { IO.exportDXF(); }, 
 def('SVGOUT', ['SVG'], 'Export SVG', async () => { IO.exportSVG(); }, { noUndo: true, noRepeat: true });
 def('PNGOUT', ['PNG', 'PLOT', 'PRINT'], 'Export PNG image', async () => { IO.exportPNG(); }, { noUndo: true, noRepeat: true });
 def('HELP', ['?', 'F1'], 'Show command list', async () => { UI.showHelp(); }, { noUndo: true, noRepeat: true });
+
+// ---------------- CLIPBOARD ----------------
+function clipStore(s) {
+  let r = { x1: Infinity, y1: Infinity };
+  s.forEach(e => { const b = entBBox(e); r = { x1: Math.min(r.x1, b.x1), y1: Math.min(r.y1, b.y1) }; });
+  App.clip = { base: { x: r.x1, y: r.y1 }, ents: s.map(e => { const c = entClone(e); delete c.id; return c; }) };
+}
+def('COPYCLIP', [], 'Copy objects to clipboard (Ctrl+C)', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  clipStore(s); UI.log(`${s.length} object(s) copied to clipboard.`);
+}, { noUndo: true, noRepeat: true });
+def('CUTCLIP', [], 'Cut objects to clipboard (Ctrl+X)', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  clipStore(s); removeEnts(s); UI.log(`${s.length} object(s) cut to clipboard.`);
+});
+def('PASTECLIP', [], 'Paste from clipboard (Ctrl+V)', async () => {
+  const c = App.clip; if (!c || !c.ents.length) { UI.log('Clipboard is empty.'); return; }
+  const mk = (q) => c.ents.map(e => entTransform(entClone(e), M.translate(q.x - c.base.x, q.y - c.base.y)));
+  const p = await getPoint('Specify insertion point', { preview: mk }); if (!isPt(p)) return;
+  App.sel.clear();
+  mk(p).forEach(e => { e._keepColor = true; addEnt(e); });
+});
