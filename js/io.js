@@ -41,7 +41,6 @@ function exportables() {
 
 const IO = {
   newDrawing() {
-    if (App.modified && !confirm('Discard unsaved changes?')) return;
     App.doc = newDoc(); App.undo = []; App.redo = []; App.sel.clear(); App.modified = false;
     App.fileName = 'Drawing' + (++IO.counter);
     zoomExtents(); UI.refreshAll(); UI.log('New drawing.');

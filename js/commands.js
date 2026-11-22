@@ -587,7 +587,13 @@ def('SNAP', ['SN'], 'Set snap spacing', async () => {
 def('ORTHO', [], 'Toggle ortho mode', toggleCmd('ortho', 'Ortho'), { noUndo: true });
 def('OSNAP', ['OS'], 'Object snap settings', async () => { UI.toggleOsnapMenu(true); }, { noUndo: true, noRepeat: true });
 
-def('NEW', ['QNEW'], 'New drawing', async () => { IO.newDrawing(); }, { noUndo: true, noRepeat: true });
+def('NEW', ['QNEW'], 'New drawing', async () => {
+  if (App.modified && App.doc.ents.length) {
+    const k = await getKeyword('Discard unsaved changes? [Yes/No] <No>', { keywords: ['Yes', 'No'], def: 'No' });
+    if (k !== 'Yes') return;
+  }
+  IO.newDrawing();
+}, { noUndo: true, noRepeat: true });
 def('OPEN', [], 'Open drawing (.json / .dxf)', async () => { IO.open(); }, { noUndo: true, noRepeat: true });
 def('SAVE', ['QSAVE', 'SAVEAS'], 'Save drawing (.json)', async () => { IO.save(); }, { noUndo: true, noRepeat: true });
 def('DXFOUT', ['EXPORT', 'DXF'], 'Export DXF', async () => { IO.exportDXF(); }, { noUndo: true, noRepeat: true });
