@@ -25,7 +25,8 @@
   const RAIL = [['props', 'rail_props', 'Properties'], ['layers', 'layers', 'Layers'], ['blocks', 'rail_blocks', 'Blocks'], ['tools', 'rail_tools', 'Tool Palette'], ['xref', 'rail_xref', 'References'], ['markup', 'rail_markup', 'Markups'], ['check', 'rail_check', 'Drawing Check']];
   const has = (c) => !!Commands[c];
   const tb = (list) => list.filter(([c]) => has(c)).map(([c, l, i]) => `<button class="wbt" data-cmd="${c}" title="${esc(l)} (${c})">${icon(i)}</button>`).join('');
-  const W = { panel: 'props', open: true };
+  const W = { panel: 'props', open: false };
+  try { const sv = JSON.parse(localStorage.getItem('opendraft-wbpanel') || 'null'); if (sv) Object.assign(W, sv); } catch (_) {}
   const byId = (id) => document.getElementById(id);
 
   function build() {
@@ -108,6 +109,7 @@
   function giveBack() { for (const id of Object.keys(homes)) { const el = byId(id); if (el && el.parentNode !== homes[id]) homes[id].appendChild(el); } }
 
   function showPanel() {
+    try { localStorage.setItem('opendraft-wbpanel', JSON.stringify(W)); } catch (_) {}
     const pan = byId('wbPanel'); if (!pan) return;
     document.querySelectorAll('#wbRail [data-wbp]').forEach(b => b.classList.toggle('on', W.open && b.dataset.wbp === W.panel));
     giveBack();
@@ -175,9 +177,16 @@
   const oProps = UI.refreshProps;
   UI.refreshProps = function (...a) { const r = oProps.apply(this, a); if (UI.web && W.open && W.panel === 'layers') { /* keep layer props fresh */ } return r; };
 
+  function webIdle() {
+    const a = byId('app'); a.classList.toggle('wbidle', !App.cmd);
+    const u = byId('wbBar'); if (!u) return;
+    u.querySelector('[data-cmd="UNDO"]').classList.toggle('off', !App.undo.length);
+    u.querySelector('[data-cmd="REDO"]').classList.toggle('off', !App.redo.length);
+  }
   // chip-style prompt: "LINE Specify next point or [Close] [Undo] :"
   const oPrompt = UI.setPrompt;
   UI.setPrompt = function (text, keywords) {
+    if (UI.web) webIdle();
     if (!UI.web || !text) return oPrompt.call(this, text, keywords);
     const p = byId('prompt');
     const t = esc(text.replace(/\s*\[[^\]]*\]\s*$/, ''));
@@ -188,10 +197,11 @@
 
   UI.setWeb = function (on) {
     if (on) build();
-    UI.web = !!on;
+    UI.web = !!on; App.webLook = UI.web;
+    const ch = document.querySelector('#cmdrow .chev'); if (ch) { ch.dataset.orig = ch.dataset.orig || ch.textContent; ch.textContent = UI.web ? '›' : ch.dataset.orig; }
     byId('app').classList.toggle('webui', UI.web);
     if (!UI.web) { giveBack(); byId('app').classList.remove('wbmax'); if (W.prevBg) { App.opts.bg = W.prevBg; W.prevBg = null; } }
-    else { if (!W.prevBg) { W.prevBg = App.opts.bg; App.opts.bg = '#24325a'; } showPanel(); syncTop(); }
+    else { if (!W.prevBg) { W.prevBg = App.opts.bg; App.opts.bg = '#24325a'; } showPanel(); syncTop(); webIdle(); }
     UI.refreshStatus(); resize(); App.dirty = true;
   };
 

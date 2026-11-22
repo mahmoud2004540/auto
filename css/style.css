@@ -535,3 +535,10 @@ svg.ic .fb { fill: #4aa8ff; stroke: none; } svg.ic .fy { fill: #f5c542; stroke: 
 #app.webui #prompt b { font-weight: 700; margin-right: 2px; }
 #app.webui #dyn { background: #f1f4fa; color: #33415f; border: 1px solid #b8c4dc; border-radius: 2px; }
 #app.webui #cmdrow *, #app.webui #prompt { font-family: "Segoe UI", system-ui, sans-serif !important; }
+#app.webui.wbidle #wbCmdBtns { display: none; }
+#app.webui #cmdrow .chev { font-size: 20px; line-height: 1; }
+#wbBar > button.off { opacity: .35; pointer-events: none; }
+#app.webui #wbTools { background: #262d3f; }
+#app.webui #wbBar { background: #262d3f; }
+#app.webui #cmdline { background: rgba(34,48,90,.92); border-top: 1px solid var(--wbline); }
+#app.webui #vplabel .chip { background: rgba(44,61,107,.85); }

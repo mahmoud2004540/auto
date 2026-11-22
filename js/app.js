@@ -218,7 +218,7 @@ function drawGrid() {
   const major = g * 5;
   ctx.lineWidth = 1;
   for (let pass = 0; pass < 2; pass++) {
-    ctx.strokeStyle = pass ? '#36404d' : '#2a323c';
+    ctx.strokeStyle = App.webLook ? (pass ? 'rgba(140,170,255,0.30)' : 'rgba(140,170,255,0.13)') : (pass ? '#36404d' : '#2a323c');
     ctx.beginPath();
     for (let x = x0; x <= br.x; x += g) {
       const isMaj = Math.abs(x / major - Math.round(x / major)) < 1e-6;
@@ -238,7 +238,13 @@ function drawGrid() {
 }
 
 function drawUCS() {
-  const x = 28, y = CH - 28;
+  const x = 28, y = CH - 28 - (App.webLook ? 44 : 0);
+  if (App.webLook) {
+    ctx.lineWidth = 1; ctx.strokeStyle = ctx.fillStyle = '#e6ecfa'; ctx.font = '13px sans-serif';
+    ctx.beginPath(); ctx.moveTo(x, y - 46); ctx.lineTo(x, y); ctx.lineTo(x + 46, y); ctx.stroke();
+    ctx.strokeRect(x - 4, y - 4, 8, 8); ctx.fillText('X', x + 48, y + 5); ctx.fillText('Y', x - 4, y - 52);
+    return;
+  }
   ctx.lineWidth = 2;
   ctx.strokeStyle = '#e05555'; ctx.fillStyle = '#e05555';
   ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 40, y); ctx.stroke();
@@ -279,6 +285,7 @@ function render() {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (App.v3d) { render3D(); return; }
   ctx.fillStyle = App.bedit ? '#2e333b' : (App.opts && App.opts.bg) || '#212830'; ctx.fillRect(0, 0, CW, CH);
+  if (App.webLook && !App.bedit) { const gr = ctx.createRadialGradient(CW * 0.55, CH * 0.6, 0, CW * 0.55, CH * 0.6, Math.max(CW, CH) * 0.7); gr.addColorStop(0, 'rgba(70,110,230,0.45)'); gr.addColorStop(1, 'rgba(20,30,70,0)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, CW, CH); }
   const paper = App.space !== 'Model';
   if (paper) { syncActiveVp(); renderLayout(); }
   else if (App.modes.grid) drawGrid();
