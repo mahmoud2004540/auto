@@ -51,27 +51,79 @@ const ICONS = {
   cut: '<circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8 16 18 3M16 16 6 3"/>',
   help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/>',
 };
+Object.assign(ICONS, {
+  line: '<path d="M4 20 20 4"/><rect class="b" x="2.5" y="18.5" width="3" height="3"/><rect class="b" x="18.5" y="2.5" width="3" height="3"/>',
+  pline: '<path d="M3 19 8 8l6 7 7-11"/><circle class="fb" cx="8" cy="8" r="1.6"/><circle class="fb" cx="14" cy="15" r="1.6"/>',
+  circle: '<circle cx="12" cy="12" r="8"/><path class="b" d="M12 12h8"/><circle class="fb" cx="12" cy="12" r="1.5"/>',
+  arc: '<path d="M4 18a9 9 0 0 1 16 0"/><rect class="b" x="2.5" y="16.5" width="3" height="3"/><rect class="b" x="18.5" y="16.5" width="3" height="3"/><rect class="b" x="10.5" y="7.5" width="3" height="3"/>',
+  rect: '<rect x="4" y="6" width="16" height="12"/><rect class="b" x="2.5" y="4.5" width="3" height="3"/><rect class="b" x="18.5" y="16.5" width="3" height="3"/>',
+  move: '<path class="b" d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/>',
+  copy: '<rect x="3" y="3" width="11" height="11"/><rect class="b" x="10" y="10" width="11" height="11"/>',
+  stretch: '<path d="M3 20V9h8"/><path class="b" d="M11 9h10M18 6l3 3-3 3"/><rect class="y" x="8" y="5" width="7" height="9" stroke-dasharray="2 2"/>',
+  rotate: '<rect x="7" y="7" width="10" height="10"/><path class="b" d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/>',
+  mirror: '<path class="y" d="M12 2v20" stroke-dasharray="2 2"/><path d="M9 6 3 18h6z"/><path class="b" d="M15 6l6 12h-6z"/>',
+  scale: '<rect x="3" y="11" width="10" height="10"/><path class="b" d="M13 11 21 3M15 3h6v6"/>',
+  trim: '<path d="M3 12h18"/><path d="M12 3v18" stroke-dasharray="2 2"/><path class="r" d="M15 5l4 4M19 5l-4 4"/>',
+  fillet: '<path d="M4 21V11"/><path d="M11 4h10"/><path class="b" d="M4 11a7 7 0 0 1 7-7"/>',
+  array: '<rect x="3" y="3" width="5" height="5"/><rect class="b" x="10" y="3" width="5" height="5"/><rect class="b" x="17" y="3" width="4" height="5"/><rect class="b" x="3" y="10" width="5" height="5"/><rect class="b" x="10" y="10" width="5" height="5"/><rect class="b" x="3" y="17" width="5" height="4"/>',
+  erase: '<path class="r" d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  explode: '<path class="y" d="M12 2v5M12 17v5M2 12h5M17 12h5M5 5l3.5 3.5M15.5 15.5 19 19M19 5l-3.5 3.5M8.5 15.5 5 19"/>',
+  offset: '<path d="M4 18C8 8 16 8 20 4"/><path class="b" d="M4 22C9 12 17 12 21 9"/>',
+  break: '<path d="M2 12h8M14 12h8"/><path class="r" d="M10 7v10M14 7v10"/>',
+  join: '<path d="M2 12h9M13 12h9"/><circle class="fb" cx="12" cy="12" r="2.2"/>',
+  breakpt: '<path d="M2 12h20"/><path class="r" d="M12 6v12"/>',
+  text: '<path d="M5 21 12 3l7 18M8 14h8"/>',
+  dimlin: '<path d="M4 6v14M20 6v14"/><path class="b" d="M4 13h16M7 11l-3 2 3 2M17 11l3 2-3 2"/>',
+  layers: '<path class="y" d="M12 3 2 8l10 5 10-5z"/><path d="M2 12l10 5 10-5M2 16l10 5 10-5"/>',
+  match: '<path d="M4 20l6-6"/><path class="y" d="M14 4l6 6-8 8-6-6z"/>',
+  insert: '<rect x="3" y="9" width="12" height="12"/><path class="b" d="M14 3h7v7M21 3l-9 9"/>',
+  blockc: '<rect x="3" y="3" width="18" height="18" stroke-dasharray="3 2"/><rect class="b" x="7" y="7" width="10" height="10"/><circle class="fb" cx="7" cy="17" r="1.6"/>',
+  paste: '<rect class="y" x="5" y="4" width="14" height="17" rx="1"/><path d="M9 4V2h6v2M9 10h6M9 14h6"/>',
+  hatch: '<rect x="3" y="3" width="18" height="18"/><path class="b" d="M3 9 9 3M3 15 15 3M3 21 21 3M9 21l12-12M15 21l6-6"/>',
+  dist: '<path class="y" d="M3 17 17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>',
+  st_grid: '<path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/>',
+  st_snap: '<g fill="currentColor" stroke="none"><circle cx="5" cy="5" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="19" cy="5" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="19" r="1.5"/><circle cx="12" cy="19" r="1.5"/><circle cx="19" cy="19" r="1.5"/></g>',
+  st_ortho: '<path d="M5 3v16h16"/>',
+  st_polar: '<circle cx="12" cy="12" r="8" stroke-dasharray="2 2"/><path d="M12 12 20 4M12 12h9"/>',
+  st_osnap: '<rect x="6" y="6" width="12" height="12"/><path d="M2 12h4M18 12h4M12 2v4M12 18v4"/>',
+  st_dyn: '<rect x="3" y="7" width="12" height="9"/><path d="M15 12h6M18 9v6"/>',
+  st_lwt: '<path d="M3 6h18" stroke-width="1"/><path d="M3 12h18" stroke-width="2.4"/><path d="M3 18h18" stroke-width="4"/>',
+  st_props: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  wrench: '<path d="M14.5 5.5a4 4 0 0 0 5 5L12 18l-3 3-3-3 3-3 7.5-7.5a4 4 0 0 0-2-2z"/>',
+  bulbOn: '<path class="fy" d="M12 3a6 6 0 0 0-3.5 10.9V17h7v-3.1A6 6 0 0 0 12 3z"/><path d="M9.5 20h5"/>',
+  bulbOff: '<path d="M12 3a6 6 0 0 0-3.5 10.9V17h7v-3.1A6 6 0 0 0 12 3z" opacity=".55"/><path d="M9.5 20h5" opacity=".55"/>',
+  lockOn: '<rect class="fy" x="5" y="11" width="14" height="10"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  lockOff: '<rect x="5" y="11" width="14" height="10" opacity=".7"/><path d="M8 11V7a4 4 0 0 1 7.5-2" opacity=".7"/>',
+  laymcur: '<path class="y" d="M12 3 2 8l10 5 10-5z"/><path class="b" d="M5 18l3 3 6-6"/>',
+  layoff: '<path class="y" d="M12 3 2 8l10 5 10-5z"/><path class="r" d="M15 15l6 6M21 15l-6 6"/>',
+  layiso: '<path class="y" d="M12 3 2 8l10 5 10-5z"/><circle class="b" cx="17" cy="18" r="3.5"/>',
+  layon: '<path class="y" d="M12 3 2 8l10 5 10-5z"/><path class="b" d="M14 18h7M17.5 14.5v7"/>',
+});
 const icon = (k) => `<svg class="ic" viewBox="0 0 24 24">${ICONS[k] || ''}</svg>`;
 
 const RIBBON = {
   Home: [
-    { label: 'Draw', items: [['LINE', 'Line', 'line'], ['PLINE', 'Polyline', 'pline'], ['CIRCLE', 'Circle', 'circle'], ['ARC', 'Arc', 'arc'],
-      { col: [['RECTANG', 'Rectangle', 'rect'], ['POLYGON', 'Polygon', 'polygon'], ['ELLIPSE', 'Ellipse', 'ellipse']] }, ['HATCH', 'Hatch', 'hatch']] },
+    { label: 'Draw', items: [['LINE', 'Line', 'line'], ['PLINE', 'Polyline', 'pline'],
+      ['CIRCLE', 'Circle', 'circle', [['Center, Radius', 'CIRCLE'], ['2-Point', 'CIRCLE', ['2P']], ['3-Point', 'CIRCLE', ['3P']]]],
+      ['ARC', 'Arc', 'arc', [['3-Point', 'ARC'], ['Center, Start, End', 'ARC', ['Center']]]],
+      { col: [['RECTANG', 'Rectangle', 'rect', [['Rectangle', 'RECTANG'], ['Polygon', 'POLYGON']]], ['ELLIPSE', 'Ellipse', 'ellipse'], ['HATCH', 'Hatch', 'hatch']] }] },
     { label: 'Modify', items: [
-      { col: [['MOVE', 'Move', 'move'], ['COPY', 'Copy', 'copy'], ['ROTATE', 'Rotate', 'rotate']] },
-      { col: [['MIRROR', 'Mirror', 'mirror'], ['SCALE', 'Scale', 'scale'], ['OFFSET', 'Offset', 'offset']] },
-      { col: [['TRIM', 'Trim', 'trim'], ['EXTEND', 'Extend', 'extend'], ['FILLET', 'Fillet', 'fillet']] },
-      { col: [['ARRAYRECT', 'Array', 'array'], ['EXPLODE', 'Explode', 'explode'], ['ERASE', 'Erase', 'erase']] }] },
-    { label: 'Annotation', items: [['TEXT', 'Text', 'text'], ['DIMLINEAR', 'Dimension', 'dimlin']] },
+      { col: [['MOVE', 'Move', 'move'], ['COPY', 'Copy', 'copy'], ['STRETCH', 'Stretch', 'stretch']] },
+      { col: [['ROTATE', 'Rotate', 'rotate'], ['MIRROR', 'Mirror', 'mirror'], ['SCALE', 'Scale', 'scale']] },
+      { col: [['TRIM', 'Trim', 'trim', [['Trim', 'TRIM'], ['Extend', 'EXTEND']]], ['FILLET', 'Fillet', 'fillet', [['Fillet', 'FILLET'], ['Chamfer', 'CHAMFER']]], ['ARRAYRECT', 'Array', 'array', [['Rectangular Array', 'ARRAYRECT'], ['Polar Array', 'ARRAYPOLAR']]]] },
+      { col: [['ERASE', 'Erase', 'erase'], ['EXPLODE', 'Explode', 'explode'], ['OFFSET', 'Offset', 'offset']] },
+      { col: [['BREAK', 'Break', 'break'], ['JOIN', 'Join', 'join'], ['BREAKATPOINT', 'Break at Point', 'breakpt']] }] },
+    { label: 'Annotation', items: [['TEXT', 'Text', 'text'], ['DIMLINEAR', 'Dimension', 'dimlin', [['Linear', 'DIMLINEAR'], ['Aligned', 'DIMALIGNED']]]] },
     { label: 'Layers', items: [['LAYER', 'Layer Properties', 'layers'], { layerctl: true }] },
+    { label: 'Block', items: [['INSERT', 'Insert', 'insert'], { col: [['BLOCK', 'Create', 'blockc'], ['EXPLODE', 'Explode', 'explode']] }] },
     { label: 'Properties', items: [['MATCHPROP', 'Match Properties', 'match'], { colorctl: true }] },
-    { label: 'Utilities', items: [['DIST', 'Measure', 'dist'], { col: [['AREA', 'Area', 'area'], ['ID', 'ID Point', 'id'], ['LIST', 'List', 'list']] }] },
-    { label: 'Clipboard', items: [['PASTECLIP', 'Paste', 'paste'], { col: [['COPYCLIP', 'Copy Clip', 'copy'], ['CUTCLIP', 'Cut', 'cut']] }] },
+    { label: 'Utilities', items: [['DIST', 'Measure', 'dist', [['Distance', 'DIST'], ['Area', 'AREA'], ['ID Point', 'ID'], ['List', 'LIST']]]] },
+    { label: 'Clipboard', items: [['PASTECLIP', 'Paste', 'paste'], { col: [['COPYCLIP', 'Copy Clip', 'copy'], ['CUTCLIP', 'Cut', 'erase']] }] },
     { label: 'View', items: [['ZOOM_EXT', 'Extents', 'zoomext']] },
   ],
   Insert: [
+    { label: 'Block', items: [['INSERT', 'Insert', 'insert'], ['BLOCK', 'Create Block', 'blockc']] },
     { label: 'Import', items: [['OPEN', 'Open DXF', 'open'], ['PASTECLIP', 'Paste', 'paste']] },
-    { label: 'Array', items: [['ARRAYRECT', 'Rectangular', 'array'], ['ARRAYPOLAR', 'Polar', 'arrayp'], ['COPY', 'Path Copy', 'copy']] },
   ],
   Annotate: [
     { label: 'Text', items: [['TEXT', 'Single Line', 'text']] },
@@ -111,6 +163,12 @@ const UI = {
     document.querySelectorAll('[data-icon]').forEach(b => { b.innerHTML = icon(b.dataset.icon); });
     this.buildRibbon();
     document.addEventListener('click', (ev) => {
+      const dd = ev.target.closest('.dd');
+      if (dd) { ev.stopPropagation(); const m = JSON.parse(dd.dataset.menu); this.popup(dd, m.map(([label, cmd, kws]) => ({ label, cmd, kws, icon: null }))); return; }
+      if (ev.target.closest('.logo')) { ev.stopPropagation(); this.appMenu(ev.target.closest('.logo')); return; }
+      if (ev.target.closest('#clRecent')) { ev.stopPropagation(); this.recentMenu(ev.target.closest('#clRecent')); return; }
+      if (ev.target.closest('#clHist')) { this.showHistory(); return; }
+      if (!ev.target.closest('.popmenu')) this.closePopup();
       const b = ev.target.closest('[data-cmd]');
       if (b) { ev.preventDefault(); b.blur(); this.exec(b.dataset.cmd); }
       const m = ev.target.closest('[data-mode]');
@@ -133,6 +191,20 @@ const UI = {
     $('helpModal').onclick = (e) => { if (e.target.id === 'helpModal') $('helpModal').hidden = true; };
     this.bindKeys();
     this.buildOsnapMenu();
+    const sb = $('search');
+    const matches = () => {
+      const v = sb.value.trim().toUpperCase(); if (!v) return [];
+      return Object.keys(Commands).filter(k => k.includes(v) || (Commands[k].alias || []).includes(v) || Commands[k].desc.toUpperCase().includes(v)).slice(0, 10);
+    };
+    sb.addEventListener('input', () => {
+      const m = matches();
+      if (!m.length) { this.closePopup(); return; }
+      this.popup(sb, m.map(k => ({ label: `${k} — ${Commands[k].desc}`, cmd: k, hint: (Commands[k].alias || [])[0] || '' })));
+      sb.focus();
+    });
+    sb.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { const m = matches(); this.closePopup(); sb.value = ''; sb.blur(); if (m[0]) runCommand(m[0]); }
+    });
     // drag & drop files
     const vp = $('viewport');
     vp.addEventListener('dragover', (e) => { e.preventDefault(); });
@@ -147,6 +219,7 @@ const UI = {
       case 'ZOOM_IN': zoomAt({ x: CW / 2, y: CH / 2 }, 1.5); return;
       case 'ZOOM_OUT': zoomAt({ x: CW / 2, y: CH / 2 }, 1 / 1.5); return;
       case 'TOGGLE_SIDE': this.toggleSide(); return;
+      case 'CANCEL': cancelReq(); $('cmdinput').value = ''; this.updateDyn(); return;
       default: runCommand(cmd);
     }
   },
@@ -155,20 +228,19 @@ const UI = {
     const tabs = $('ribbonTabs');
     tabs.innerHTML = Object.keys(RIBBON).map(t => `<button class="${t === this.tab ? 'active' : ''}" data-tab="${t}">${t}</button>`).join('');
     tabs.querySelectorAll('button').forEach(b => b.onclick = () => { this.tab = b.dataset.tab; this.buildRibbon(); });
-    const btn = ([c, l, i], small) => `<button class="rbtn${small ? ' small' : ''}" data-cmd="${c}" title="${esc(l)}${Commands[c] ? ' (' + c + ')' : ''}">${icon(i)}<span>${esc(l)}</span></button>`;
+    const btn = ([c, l, i, menu], small) => {
+      const dd = menu ? `<span class="dd" title="More options" data-menu="${esc(JSON.stringify(menu))}">&#9662;</span>` : '';
+      return `<div class="rb${small ? ' small' : ''}"><button class="rbtn${small ? ' small' : ''}" data-cmd="${c}" title="${esc(l)}${Commands[c] ? ' (' + c + ')' : ''}">${icon(i)}<span>${esc(l)}</span></button>${dd}</div>`;
+    };
     $('ribbonPanels').innerHTML = RIBBON[this.tab].map(g => `<div class="rgroup"><div class="items">${g.items.map(it => {
       if (Array.isArray(it)) return btn(it);
       if (it.col) return `<div class="smallcol">${it.col.map(x => btn(x, true)).join('')}</div>`;
       if (it.colorctl) return `<div class="layerctl"><select id="ribbonColor" title="Color for new objects">${COLORS.map(([n, c]) => `<option value="${c}">${n}</option>`).join('')}</select><select id="ribbonLt" title="Linetype for new objects">${ltOptions(App.doc.curLt, true)}</select><select id="ribbonLw" title="Lineweight for new objects">${lwOptions(App.doc.curLw, true)}</select></div>`;
-      if (it.layerctl) return `<div class="layerctl"><select id="ribbonLayer" title="Current layer"></select><div class="muted" style="font-size:11px">Current layer</div></div>`;
+      if (it.layerctl) return `<div class="layerctl"><button class="ldrop" id="layerDrop" title="Layer control"></button><div class="licons">${[['LAYMCUR', 'laymcur', 'Make object\'s layer current'], ['LAYOFF', 'layoff', 'Turn object\'s layer off'], ['LAYISO', 'layiso', 'Isolate object\'s layer'], ['LAYON', 'layon', 'Turn all layers on'], ['LAYLCK', 'lockOn', 'Lock object\'s layer'], ['LAYULK', 'lockOff', 'Unlock object\'s layer']].map(([c, i, t]) => `<button class="rbtn small" data-cmd="${c}" title="${t} (${c})">${icon(i)}</button>`).join('')}</div></div>`;
       return '';
     }).join('')}</div><div class="glabel">${g.label}</div></div>`).join('');
-    const rl = $('ribbonLayer');
-    if (rl) rl.onchange = () => {
-      const v = rl.value; const s = selEnts();
-      this.change(() => { if (s.length) s.forEach(e => { e.layer = v; }); else App.doc.cur = v; });
-      rl.blur();
-    };
+    const ld = $('layerDrop');
+    if (ld) ld.onclick = (ev) => { ev.stopPropagation(); this.layerPopup(ld); };
     const applyProp = (key, val) => { const s = selEnts(); this.change(() => { if (s.length) s.forEach(e => { if (val === undefined) delete e[key]; else e[key] = val; }); else App.doc['cur' + key[0].toUpperCase() + key.slice(1)] = val; }); };
     const rlt = $('ribbonLt'); if (rlt) rlt.onchange = () => { applyProp('lt', rlt.value || undefined); rlt.blur(); };
     const rlw = $('ribbonLw'); if (rlw) rlw.onchange = () => { applyProp('lw', rlw.value === '' ? undefined : parseFloat(rlw.value)); rlw.blur(); };
@@ -179,6 +251,72 @@ const UI = {
     }
     this.refreshLayers();
   },
+
+  layerRowHtml(l) {
+    return `<span class="li" data-lt="on">${icon(l.on ? 'bulbOn' : 'bulbOff')}</span><span class="li" data-lt="lock">${icon(l.locked ? 'lockOn' : 'lockOff')}</span><span class="sw" style="background:${l.color}"></span><span class="lname">${esc(l.name)}</span>`;
+  },
+  layerPopup(anchor) {
+    this.closePopup();
+    const box = document.createElement('div');
+    box.className = 'popmenu layerpop';
+    const render = () => {
+      box.innerHTML = App.doc.layers.map((l, i) => `<div class="lrow${l.name === App.doc.cur ? ' cur' : ''}" data-i="${i}">${this.layerRowHtml(l)}</div>`).join('');
+    };
+    render();
+    box.onclick = (ev) => {
+      ev.stopPropagation();
+      const row = ev.target.closest('.lrow'); if (!row) return;
+      const l = App.doc.layers[+row.dataset.i];
+      const t = ev.target.closest('[data-lt]');
+      if (t) { this.change(() => { if (t.dataset.lt === 'on') l.on = !l.on; else l.locked = !l.locked; }); render(); return; }
+      const s = selEnts();
+      this.change(() => { if (s.length) s.forEach(e => { e.layer = l.name; }); else App.doc.cur = l.name; });
+      this.closePopup();
+    };
+    this.placePopup(box, anchor);
+  },
+  popup(anchor, items) {
+    this.closePopup();
+    const box = document.createElement('div');
+    box.className = 'popmenu';
+    box.innerHTML = items.map((it, i) => it === '-' ? '<hr>' : `<div class="mi" data-i="${i}">${it.icon ? icon(it.icon) : '<span class="noic"></span>'}<span>${esc(it.label)}</span>${it.hint ? `<small>${esc(it.hint)}</small>` : ''}</div>`).join('');
+    box.onclick = (ev) => {
+      ev.stopPropagation();
+      const mi = ev.target.closest('.mi'); if (!mi) return;
+      const it = items[+mi.dataset.i];
+      this.closePopup();
+      if (it.fn) it.fn(); else this.runWith(it.cmd, it.kws);
+    };
+    this.placePopup(box, anchor);
+  },
+  placePopup(box, anchor) {
+    document.body.appendChild(box);
+    const r = anchor.getBoundingClientRect();
+    const h = box.offsetHeight, w = box.offsetWidth;
+    let top = r.bottom + 2; if (top + h > window.innerHeight - 4) top = Math.max(4, r.top - h - 2);
+    box.style.top = top + 'px';
+    box.style.left = Math.max(4, Math.min(r.left, window.innerWidth - w - 4)) + 'px';
+    this._popup = box;
+  },
+  closePopup() { if (this._popup) { this._popup.remove(); this._popup = null; } },
+  runWith(cmd, kws) {
+    if (Commands[cmd] && kws && kws.length) runCommand(cmd, kws.slice()); else this.exec(cmd);
+  },
+  appMenu(anchor) {
+    this.popup(anchor, [
+      { label: 'New', cmd: 'NEW', icon: 'new', hint: 'Ctrl+N' }, { label: 'Open...', cmd: 'OPEN', icon: 'open', hint: 'Ctrl+O' },
+      { label: 'Save', cmd: 'SAVE', icon: 'save', hint: 'Ctrl+S' }, { label: 'Save As...', cmd: 'SAVE', icon: 'save' }, '-',
+      { label: 'Export DXF', cmd: 'DXFOUT', icon: 'export' }, { label: 'Export SVG', cmd: 'SVGOUT', icon: 'svg' },
+      { label: 'Plot to PNG', cmd: 'PNGOUT', icon: 'png', hint: 'Ctrl+P' }, '-',
+      { label: 'Drawing Utilities: Select All', cmd: 'SELECTALL', icon: 'selall' }, { label: 'Commands & Help', cmd: 'HELP', icon: 'help', hint: 'F1' },
+    ]);
+  },
+  recentMenu(anchor) {
+    const items = this.recent.slice(-10).reverse().map(c => ({ label: c, cmd: c, hint: (Commands[c].alias || [])[0] || '' }));
+    if (!items.length) items.push({ label: 'No recent commands', fn: () => {} });
+    this.popup(anchor, items);
+  },
+  recent: [],
 
   // perform an undoable change from the UI
   change(fn) {
@@ -466,12 +604,12 @@ const UI = {
       this.change(() => { App.doc.layers.push({ name: 'Layer' + n, color: palette[(n - 1) % palette.length], on: true, locked: false, lt: 'Continuous', lw: 0.25 }); });
     };
     $('layerFromSel').onclick = () => { const s = selEnts(); if (s.length) this.change(() => { App.doc.cur = s[0].layer; }); };
-    const rl = $('ribbonLayer');
-    if (rl) {
+    const ld = $('layerDrop');
+    if (ld) {
       const s = selEnts(); const ls = new Set(s.map(e => e.layer));
       const show = s.length ? (ls.size === 1 ? [...ls][0] : null) : App.doc.cur;
-      rl.innerHTML = (show === null ? '<option selected>*VARIES*</option>' : '') + App.doc.layers.map(l => `<option value="${esc(l.name)}" ${l.name === show ? 'selected' : ''}>${l.on ? '●' : '○'} ${esc(l.name)}</option>`).join('');
-      rl.style.color = (App.doc.layers.find(l => l.name === show) || {}).color || '';
+      const L = App.doc.layers.find(l => l.name === show);
+      ld.innerHTML = L ? this.layerRowHtml(L) + '<span class="arr">&#9662;</span>' : '<span class="lname">*VARIES*</span><span class="arr">&#9662;</span>';
     }
   },
   renameLayer(l, n) {

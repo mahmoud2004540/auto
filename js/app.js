@@ -36,7 +36,7 @@ function newDoc() {
       { name: 'Center', color: '#ff0000', on: true, locked: false, lt: 'Center', lw: 0.18 },
       { name: 'Hatch', color: '#808080', on: true, locked: false, lt: 'Continuous', lw: 0.13 },
     ],
-    cur: '0', nextId: 1, textH: 2.5, dimH: 2.5, ltscale: 1,
+    cur: '0', nextId: 1, textH: 2.5, dimH: 2.5, ltscale: 1, blocks: {},
   };
 }
 App.doc = newDoc();
@@ -130,6 +130,7 @@ function zoomExtents() {
 // ---------- rendering ----------
 function makeR(g = ctx) {
   return {
+    g,
     line(a, b) { const p = w2s(a), q = w2s(b); g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke(); },
     poly(pts, closed) {
       if (!pts.length) return;
@@ -258,7 +259,7 @@ function render() {
   if (!App.dirty) return;
   App.dirty = false;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  ctx.fillStyle = '#1e242c'; ctx.fillRect(0, 0, CW, CH);
+  ctx.fillStyle = '#212830'; ctx.fillRect(0, 0, CW, CH);
   if (App.modes.grid) drawGrid();
   const R = makeR();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -395,7 +396,7 @@ function findOsnap(raw, base) {
         for (const pl of entApprox(e)) for (let i = 0; i < pl.length - 1; i++) {
           if (ptSegDist(raw, pl[i], pl[i + 1]) > tol) continue;
           const c = closestOnSeg(base, pl[i], pl[i + 1]);
-          if (c.t > 1e-6 && c.t < 1 - 1e-6) return { p: c.p, t: 'perp' };
+          if (c.t > 1e-6 && c.t < 1 - 1e-6 && V.dist(c.p, base) > tol) return { p: c.p, t: 'perp' };
         }
       } else if (e.type === 'circle' || e.type === 'arc') {
         const p = V.polar(e.c, V.ang(e.c, base), e.r);
@@ -458,6 +459,7 @@ function ask(kind, prompt, opts = {}) {
     UI.setPrompt(prompt, opts.keywords);
     updateEffective(); updatePreview();
     App.dirty = true;
+    if (App.queue && App.queue.length) { const v = App.queue.shift(); setTimeout(() => { if (App.req && App.req.res === res) submitInput(v); }, 0); }
   });
 }
 const getPoint = (prompt, o) => ask('point', prompt, o);
@@ -591,13 +593,15 @@ function pickForRequest(p) {
 }
 
 // ---------- command runner ----------
-async function runCommand(input) {
+async function runCommand(input, queue) {
   const name = typeof input === 'string' ? resolveCmd(input) : null;
   const fn = typeof input === 'function' ? input : (name && Commands[name] ? Commands[name].fn : null);
   if (!fn) { UI.log(`Unknown command "${String(input).toUpperCase()}". Press F1 or type HELP.`, 'err'); return; }
   if (App.cmd) { cancelReq(); await new Promise(r => setTimeout(r, 0)); }
   const transparent = name && Commands[name].noUndo;
+  App.queue = queue || [];
   App.cmd = name || 'GRIP';
+  if (name && !Commands[name].noRepeat) { UI.recent = UI.recent.filter(c => c !== name); UI.recent.push(name); }
   App.hotGrip = null;
   if (name) { UI.log(`Command: ${name}`, 'cmd'); if (!Commands[name].noRepeat) App.lastCmd = name; }
   UI.setPrompt(name || '', null);
@@ -608,7 +612,7 @@ async function runCommand(input) {
     if (err instanceof Cancel) UI.log('*Cancel*');
     else { console.error(err); UI.log('Error: ' + err.message, 'err'); }
   } finally {
-    App.cmd = null; App.req = null; App.temp = []; App.snap = null; App.track = null; App.win = null;
+    App.cmd = null; App.req = null; App.temp = []; App.queue = []; App.snap = null; App.track = null; App.win = null;
     if (App.usedSel) { App.sel.clear(); App.usedSel = false; }
     if (before !== null && snapshot() !== before) pushUndo(before);
     UI.setPrompt('', null);

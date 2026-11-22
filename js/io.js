@@ -29,12 +29,12 @@ function download(name, data, mime) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
-function exportables() {
+function exportables(keepInserts) {
   const out = [];
   for (const e of App.doc.ents) {
     if (!visible(e)) continue;
-    if (e.type === 'dim') { for (const p of Types.dim.explode(e)) { p.layer = e.layer; p.color = e.color; out.push(p); } }
-    else out.push(e);
+    if (e.type === 'insert' && keepInserts) out.push(e);
+    else flattenEnt(e, out);
   }
   return out;
 }
@@ -107,15 +107,14 @@ const IO = {
     w(0, 'STYLE'); w(2, 'STANDARD'); w(70, 0); w(40, 0); w(41, 1); w(50, 0); w(71, 0); w(42, 2.5); w(3, 'txt'); w(4, '');
     w(0, 'ENDTAB');
     w(0, 'ENDSEC');
-    w(0, 'SECTION'); w(2, 'ENTITIES');
-    for (const e of exportables()) {
+    const writeEnt = (e) => {
       const head = (t) => { w(0, t); w(8, e.layer || '0'); if (e.lt) w(6, e.lt.toUpperCase()); if (e.color) w(62, hexToAci(e.color)); };
       if (e.type === 'hatch') {
         const pat = HATCH_PATTERNS[e.pat] || HATCH_PATTERNS.ANSI31;
         if (!pat.fam.length) {
           for (const l of e.loops) { head('POLYLINE'); w(66, 1); w(10, 0); w(20, 0); w(30, 0); w(70, 1); for (const p of l) { w(0, 'VERTEX'); w(8, e.layer || '0'); w(10, num(p.x)); w(20, num(p.y)); w(30, 0); } w(0, 'SEQEND'); w(8, e.layer || '0'); }
         } else for (const [a, b] of hatchLines(e)) { head('LINE'); w(10, num(a.x)); w(20, num(a.y)); w(30, 0); w(11, num(b.x)); w(21, num(b.y)); w(31, 0); }
-        continue;
+        return;
       }
       if (e.type === 'line') { head('LINE'); w(10, num(e.p1.x)); w(20, num(e.p1.y)); w(30, 0); w(11, num(e.p2.x)); w(21, num(e.p2.y)); w(31, 0); }
       else if (e.type === 'circle') { head('CIRCLE'); w(10, num(e.c.x)); w(20, num(e.c.y)); w(30, 0); w(40, num(e.r)); }
@@ -124,8 +123,18 @@ const IO = {
         head('POLYLINE'); w(66, 1); w(10, 0); w(20, 0); w(30, 0); w(70, e.closed ? 1 : 0);
         for (const p of e.pts) { w(0, 'VERTEX'); w(8, e.layer || '0'); w(10, num(p.x)); w(20, num(p.y)); w(30, 0); }
         w(0, 'SEQEND'); w(8, e.layer || '0');
-      } else if (e.type === 'text') { head('TEXT'); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(40, num(e.h)); w(1, e.s); w(50, num(deg(normAng(e.rot || 0)))); }
+      } else if (e.type === 'insert') { head('INSERT'); w(2, e.name); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(41, num(e.sx || 1)); w(42, num(e.sy || 1)); w(43, 1); w(50, num(deg(normAng(e.rot || 0)))); }
+      else if (e.type === 'text') { head('TEXT'); w(10, num(e.p.x)); w(20, num(e.p.y)); w(30, 0); w(40, num(e.h)); w(1, e.s); w(50, num(deg(normAng(e.rot || 0)))); }
+    };
+    w(0, 'SECTION'); w(2, 'BLOCKS');
+    for (const [bn, bd] of Object.entries(App.doc.blocks || {})) {
+      w(0, 'BLOCK'); w(8, '0'); w(2, bn); w(70, 0); w(10, num(bd.base.x)); w(20, num(bd.base.y)); w(30, 0); w(3, bn);
+      for (const be of bd.ents) { if (be.type === 'insert') writeEnt(be); else { const f = []; flattenEnt(be, f); f.forEach(writeEnt); } }
+      w(0, 'ENDBLK'); w(8, '0');
     }
+    w(0, 'ENDSEC');
+    w(0, 'SECTION'); w(2, 'ENTITIES');
+    for (const e of exportables(true)) writeEnt(e);
     w(0, 'ENDSEC'); w(0, 'EOF');
     const name = App.fileName.replace(/\.(json|dxf)$/i, '') + '.dxf';
     download(name, L.join('\r\n') + '\r\n', 'application/dxf');
@@ -312,22 +321,16 @@ const IO = {
             break;
           }
           case 'POINT': sink.push({ ...base, type: 'circle', c: { x: getN(r, 10), y: getN(r, 20) }, r: 0.05 }); break;
-          case 'INSERT': {
+          case 'INSERT': case 'DIMENSION': {
             if (depth > 8) break;
-            const b = blocks.get(get(r, 2, '')); if (!b) break;
-            const ins = { x: getN(r, 10), y: getN(r, 20) }, sx = getN(r, 41, 1) || 1, sy = getN(r, 42, 1) || 1, rot = rad(getN(r, 50));
-            const sub = []; convert(b.recs, sub, depth + 1);
-            const cs = Math.cos(rot), sn = Math.sin(rot);
-            const m = [sx * cs, sx * sn, -sy * sn, sy * cs, 0, 0];
-            const t0 = M.apply(m, b.base); m[4] = ins.x - t0.x; m[5] = ins.y - t0.y;
-            for (const e of sub) {
-              if (Math.abs(Math.abs(sx) - Math.abs(sy)) > 1e-9 && (e.type === 'circle' || e.type === 'arc')) {
-                const pl = { type: 'pline', pts: entApprox(e)[0], closed: e.type === 'circle', layer: e.layer, color: e.color };
-                entTransform(pl, m); sink.push(pl);
-              } else sink.push(entTransform(e, m));
-              const last = sink[sink.length - 1];
-              if (last.layer === '0') { last.layer = base.layer; if (!last.color && base.color) last.color = base.color; }
+            const bname = get(r, 2, ''); const b = blocks.get(bname); if (!b) break;
+            if (!doc.blocks[bname]) {
+              doc.blocks[bname] = { base: b.base, ents: [] };
+              const sub = []; convert(b.recs, sub, depth + 1);
+              doc.blocks[bname].ents = sub;
             }
+            if (r.type === 'DIMENSION') sink.push({ ...base, type: 'insert', name: bname, p: { x: b.base.x, y: b.base.y }, sx: 1, sy: 1, rot: 0 });
+            else sink.push({ ...base, type: 'insert', name: bname, p: { x: getN(r, 10), y: getN(r, 20) }, sx: getN(r, 41, 1) || 1, sy: getN(r, 42, 1) || 1, rot: rad(getN(r, 50)) });
             break;
           }
           default: break;

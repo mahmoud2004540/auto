@@ -59,6 +59,12 @@ host (e.g. GitHub Pages).
 | ARRAYRECT | AR | مصفوفة مستطيلة |
 | ARRAYPOLAR | ARP | مصفوفة دائرية |
 | EXPLODE | X | تفكيك |
+| STRETCH | S | مط الكائنات بنافذة تقاطعية |
+| BREAK / BREAKATPOINT | BR / BRP | كسر كائن بين نقطتين / عند نقطة |
+| JOIN | J | دمج خطوط وأقواس و Polylines |
+| CHAMFER | CHA | شطف زاوية بين خطين |
+| BLOCK / INSERT | B / I | إنشاء بلوك / إدراج بلوك |
+| LAYMCUR, LAYOFF, LAYON, LAYISO, LAYLCK, LAYULK | | أدوات الطبقات |
 | ERASE | E, Delete | حذف |
 | MATCHPROP | MA | نسخ الخصائص |
 | LINETYPE | LT | عرض أنواع الخطوط (Continuous, Dashed, Hidden, Center, Phantom, DashDot, Dot, Border) |

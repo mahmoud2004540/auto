@@ -232,7 +232,7 @@ function entApprox(e) {
   if (!a) { a = Types[e.type].approx(e); _approxCache.set(e, a); }
   return a;
 }
-function invalidate(e) { _approxCache.delete(e); _bboxCache.delete(e); }
+function invalidate(e) { _approxCache.delete(e); _bboxCache.delete(e); if (typeof _insCache !== 'undefined') _insCache.delete(e); }
 const _bboxCache = new WeakMap();
 function entBBox(e) {
   const c = _bboxCache.get(e); if (c) return c;

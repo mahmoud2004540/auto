@@ -297,7 +297,7 @@ def('EXPLODE', ['X'], 'Explode polylines and dimensions', async () => {
   for (const e of s) {
     const parts = Types[e.type].explode(e);
     if (!parts) continue;
-    removeEnts([e]); parts.forEach(p => { p.layer = e.layer; if (e.color) p.color = e.color; addEnt(p); }); n++;
+    removeEnts([e]); parts.forEach(p => { if (!p.layer) p.layer = e.layer; if (e.color && !p.color && e.type !== 'insert') p.color = e.color; p._keepColor = true; addEnt(p); }); n++;
   }
   UI.log(n ? `${n} object(s) exploded.` : 'Nothing to explode.');
 });
@@ -354,7 +354,7 @@ def('OFFSET', ['O'], 'Offset lines, circles, arcs, polylines', async () => {
     App.sel.clear();
     if (!isPt(side)) return;
     const o = offsetEnt(pick.e, d, side);
-    if (o) { o.layer = pick.e.layer; if (pick.e.color) o.color = pick.e.color; delete o.id; addEnt(o); }
+    if (o) { inheritStyle(pick.e, o); delete o.id; addEnt(o); }
   }
 });
 
@@ -427,7 +427,7 @@ def('TRIM', ['TR'], 'Trim objects at intersections', async () => {
     }
     const src = pick.e;
     removeEnts([src]);
-    res.forEach(r => { r.layer = src.layer; if (src.color) r.color = src.color; addEnt(r); });
+    res.forEach(r => addEnt(inheritStyle(src, r)));
   }
 });
 
@@ -668,3 +668,253 @@ def('LINETYPE', ['LT'], 'Show available linetypes', async () => {
   UI.log('Set linetype per layer in the Layers palette, or per object in Properties.', 'info');
   UI.showHistory(true);
 }, { noUndo: true, noRepeat: true });
+
+// ---------------- STRETCH / BREAK / JOIN / CHAMFER ----------------
+function inheritStyle(src, dst) {
+  for (const k of ['layer', 'color', 'lt', 'lw', 'lts']) if (src[k] !== undefined) dst[k] = src[k];
+  dst._keepColor = true;
+  return dst;
+}
+
+function stretchEnt(e, r, d) {
+  const inR = (p) => ptInRect(p, r);
+  const mv = (p) => (inR(p) ? V.add(p, d) : p);
+  const whole = () => entTransform(e, M.translate(d.x, d.y));
+  switch (e.type) {
+    case 'line': e.p1 = mv(e.p1); e.p2 = mv(e.p2); break;
+    case 'pline': e.pts = e.pts.map(mv); break;
+    case 'circle': if (inR(e.c)) whole(); break;
+    case 'arc': {
+      const s = V.polar(e.c, e.a1, e.r), t = V.polar(e.c, e.a2, e.r), m = V.polar(e.c, e.a1 + normAng(e.a2 - e.a1) / 2, e.r);
+      if (inR(s) && inR(t)) { whole(); break; }
+      const a = arcFrom3(mv(s), inR(s) || inR(t) ? m : mv(m), mv(t));
+      if (a) { e.c = a.c; e.r = a.r; e.a1 = a.a1; e.a2 = a.a2; }
+      break;
+    }
+    case 'text': case 'insert': if (inR(e.p)) whole(); break;
+    case 'dim': e.p1 = mv(e.p1); e.p2 = mv(e.p2); e.p3 = mv(e.p3); break;
+    case 'hatch': e.loops = e.loops.map(l => l.map(mv)); break;
+    default: break;
+  }
+  invalidate(e);
+  return e;
+}
+def('STRETCH', ['S'], 'Stretch objects crossed by a window', async () => {
+  UI.log('Select objects to stretch by crossing-window or crossing-polygon...');
+  const a = await getPoint('Specify first corner', { noSnap: true }); if (!isPt(a)) return;
+  const b = await getPoint('Specify opposite corner', { noSnap: true, rubber: false, preview: (q) => [{ type: 'pline', pts: rectPts(a, q), closed: true, color: '#4cd964', dash: true }] });
+  if (!isPt(b)) return;
+  const r = rectNorm(a, b);
+  const s = App.doc.ents.filter(e => editable(e) && entCrossing(e, r));
+  UI.log(`${s.length} found`);
+  if (!s.length) return;
+  s.forEach(e => App.sel.add(e.id)); App.usedSel = true; App.dirty = true;
+  const bs = await baseSecond(); if (!bs) return;
+  let to = bs.disp;
+  if (!to) {
+    to = await getPoint('Specify second point', { base: bs.base, preview: (q) => s.map(e => stretchEnt(entClone(e), r, V.sub(q, bs.base))) });
+    if (!isPt(to)) return;
+  }
+  const d = bs.disp ? to : V.sub(to, bs.base);
+  s.forEach(e => stretchEnt(e, r, d));
+});
+
+function plParam(e, p) { // segment index + t of nearest point on a polyline
+  const n = e.pts.length, segs = e.closed ? n : n - 1;
+  let best = { i: 0, t: 0, d: Infinity };
+  for (let i = 0; i < segs; i++) { const c = closestOnSeg(p, e.pts[i], e.pts[(i + 1) % n]); const d = V.dist(c.p, p); if (d < best.d) best = { i, t: c.t, d, p: c.p }; }
+  return best;
+}
+function breakEnt(e, p1, p2) {
+  const same = V.dist(p1, p2) < 1e-9;
+  if (e.type === 'line') {
+    let t1 = closestOnSeg(p1, e.p1, e.p2).t, t2 = closestOnSeg(p2, e.p1, e.p2).t;
+    if (t1 > t2) [t1, t2] = [t2, t1];
+    const out = [];
+    if (t1 > 1e-9) out.push({ type: 'line', p1: e.p1, p2: V.lerp(e.p1, e.p2, t1) });
+    if (t2 < 1 - 1e-9) out.push({ type: 'line', p1: V.lerp(e.p1, e.p2, t2), p2: e.p2 });
+    return out;
+  }
+  if (e.type === 'circle') {
+    if (same) { UI.log('Arc cannot be full 360 degrees.', 'err'); return null; }
+    return [{ type: 'arc', c: e.c, r: e.r, a1: V.ang(e.c, p2), a2: V.ang(e.c, p1) }];
+  }
+  if (e.type === 'arc') {
+    const span = normAng(e.a2 - e.a1) || TAU;
+    let u1 = Math.min(span, normAng(V.ang(e.c, p1) - e.a1)), u2 = Math.min(span, normAng(V.ang(e.c, p2) - e.a1));
+    if (u1 > u2) [u1, u2] = [u2, u1];
+    const out = [];
+    if (u1 > 1e-9) out.push({ type: 'arc', c: e.c, r: e.r, a1: e.a1, a2: e.a1 + u1 });
+    if (u2 < span - 1e-9) out.push({ type: 'arc', c: e.c, r: e.r, a1: e.a1 + u2, a2: e.a2 });
+    return out;
+  }
+  if (e.type === 'pline') {
+    let A = plParam(e, p1), B = plParam(e, p2);
+    if (A.i + A.t > B.i + B.t) [A, B] = [B, A];
+    const n = e.pts.length;
+    if (!e.closed) {
+      const out = [];
+      const first = [...e.pts.slice(0, A.i + 1), A.p];
+      const second = [B.p, ...e.pts.slice(B.i + 1)];
+      if (first.length > 1 && V.dist(first[0], A.p) > 1e-9) out.push({ type: 'pline', pts: first, closed: false });
+      if (second.length > 1 && V.dist(B.p, e.pts[n - 1]) > 1e-9) out.push({ type: 'pline', pts: second, closed: false });
+      return out;
+    }
+    if (same) return [{ type: 'pline', pts: [A.p, ...e.pts.slice(A.i + 1), ...e.pts.slice(0, A.i + 1), A.p], closed: false }];
+    const pts = [B.p, ...e.pts.slice(B.i + 1), ...e.pts.slice(0, A.i + 1), A.p];
+    return [{ type: 'pline', pts, closed: false }];
+  }
+  return null;
+}
+def('BREAK', ['BR'], 'Break an object between two points', async () => {
+  const pick = await getEntity('Select object', { filter: e => ['line', 'circle', 'arc', 'pline'].includes(e.type) });
+  if (!pick || typeof pick !== 'object') return;
+  const e = pick.e;
+  App.sel.add(e.id); App.usedSel = true; App.dirty = true;
+  let p1 = entNearest(e, pick.p);
+  let p2 = await getPoint('Specify second break point or [First point]', { keywords: ['First'], base: p1, rubber: false });
+  if (p2 === 'First') {
+    const f = await getPoint('Specify first break point'); if (!isPt(f)) return;
+    p1 = entNearest(e, f);
+    p2 = await getPoint('Specify second break point', { base: p1, rubber: false });
+  }
+  if (!isPt(p2)) return;
+  p2 = entNearest(e, p2);
+  const res = breakEnt(e, p1, p2);
+  if (!res) return;
+  removeEnts([e]);
+  res.forEach(r => addEnt(inheritStyle(e, r)));
+});
+def('BREAKATPOINT', ['BRP'], 'Break an object into two at a point', async () => {
+  const pick = await getEntity('Select object', { filter: e => ['line', 'arc', 'pline'].includes(e.type) });
+  if (!pick || typeof pick !== 'object') return;
+  const p = await getPoint('Specify break point'); if (!isPt(p)) return;
+  const q = entNearest(pick.e, p);
+  const res = breakEnt(pick.e, q, q); if (!res) return;
+  removeEnts([pick.e]); res.forEach(r => addEnt(inheritStyle(pick.e, r)));
+});
+
+def('JOIN', ['J'], 'Join lines, arcs and polylines end to end', async () => {
+  const s = (await getSelection('Select objects to join')).filter(e => ['line', 'pline', 'arc'].includes(e.type) && !(e.type === 'pline' && e.closed));
+  if (s.length < 2) { UI.log('Select at least two lines, arcs or open polylines.'); return; }
+  let ext = 1; s.forEach(e => { const b = entBBox(e); ext = Math.max(ext, Math.abs(b.x1), Math.abs(b.x2), Math.abs(b.y1), Math.abs(b.y2)); });
+  const tol = ext * 1e-7;
+  // 1) merge collinear lines (even with gaps)
+  let lines = s.filter(e => e.type === 'line').map(e => ({ p1: e.p1, p2: e.p2, src: [e] }));
+  let merged = true;
+  while (merged) {
+    merged = false;
+    outer: for (let i = 0; i < lines.length; i++) for (let j = i + 1; j < lines.length; j++) {
+      const a = lines[i], b = lines[j];
+      const d = V.norm(V.sub(a.p2, a.p1));
+      const off = (p) => Math.abs(V.cross(d, V.sub(p, a.p1)));
+      if (off(b.p1) > tol * 10 || off(b.p2) > tol * 10) continue;
+      const ts = [a.p1, a.p2, b.p1, b.p2].map(p => V.dot(V.sub(p, a.p1), d));
+      const ia = [Math.min(ts[0], ts[1]), Math.max(ts[0], ts[1])], ib = [Math.min(ts[2], ts[3]), Math.max(ts[2], ts[3])];
+      if (ib[0] > ia[1] + tol * 10 && ia[0] > ib[1] + tol * 10) continue;
+      const lo = Math.min(...ts), hi = Math.max(...ts);
+      lines[i] = { p1: V.add(a.p1, V.mul(d, lo)), p2: V.add(a.p1, V.mul(d, hi)), src: [...a.src, ...b.src] };
+      lines.splice(j, 1); merged = true; break outer;
+    }
+  }
+  // 2) chain everything end to end
+  let chains = [...lines.map(l => ({ pts: [l.p1, l.p2], src: l.src, line: true })),
+    ...s.filter(e => e.type !== 'line').map(e => ({ pts: e.type === 'pline' ? e.pts.slice() : entApprox(e)[0].slice(), src: [e], line: false }))];
+  const eq = (a, b) => V.dist(a, b) <= tol * 10;
+  merged = true;
+  while (merged) {
+    merged = false;
+    outer2: for (let i = 0; i < chains.length; i++) for (let j = 0; j < chains.length; j++) {
+      if (i === j) continue;
+      const a = chains[i], b = chains[j];
+      let pts = null;
+      if (eq(a.pts[a.pts.length - 1], b.pts[0])) pts = [...a.pts, ...b.pts.slice(1)];
+      else if (eq(a.pts[a.pts.length - 1], b.pts[b.pts.length - 1])) pts = [...a.pts, ...b.pts.slice(0, -1).reverse()];
+      else if (eq(a.pts[0], b.pts[0])) pts = [...a.pts.slice().reverse(), ...b.pts.slice(1)];
+      else continue;
+      chains[i] = { pts, src: [...a.src, ...b.src], line: false };
+      chains.splice(j, 1); merged = true; break outer2;
+    }
+  }
+  let joined = 0;
+  for (const c of chains) {
+    if (c.src.length < 2) continue;
+    const first = c.src[0];
+    removeEnts(c.src);
+    if (c.line) addEnt(inheritStyle(first, { type: 'line', p1: c.pts[0], p2: c.pts[1] }));
+    else {
+      const closed = c.pts.length > 3 && eq(c.pts[0], c.pts[c.pts.length - 1]);
+      const pts = closed ? c.pts.slice(0, -1) : c.pts;
+      addEnt(inheritStyle(first, { type: 'pline', pts: pts.filter((p, k) => k === 0 || !eq(p, pts[k - 1])), closed }));
+    }
+    joined += c.src.length;
+  }
+  UI.log(joined ? `${joined} objects joined.` : 'Objects are not connected end to end.');
+});
+
+def('CHAMFER', ['CHA'], 'Chamfer two lines', async () => {
+  App.chamD = App.chamD || [0, 0];
+  let pick1 = await getEntity(`Select first line or [Distance] (Dist1 = ${fmt(App.chamD[0])}, Dist2 = ${fmt(App.chamD[1])})`, { filter: e => e.type === 'line', keywords: ['Distance'] });
+  if (pick1 === 'Distance') {
+    const d1 = await getDist(`Specify first chamfer distance <${fmt(App.chamD[0])}>`, { def: App.chamD[0] }); if (typeof d1 !== 'number') return;
+    const d2 = await getDist(`Specify second chamfer distance <${fmt(d1)}>`, { def: d1 }); if (typeof d2 !== 'number') return;
+    App.chamD = [d1, d2];
+    pick1 = await getEntity('Select first line', { filter: e => e.type === 'line' });
+  }
+  if (!pick1 || typeof pick1 !== 'object') return;
+  App.sel.add(pick1.e.id); App.dirty = true;
+  const pick2 = await getEntity('Select second line', { filter: e => e.type === 'line' && e !== pick1.e });
+  App.sel.clear();
+  if (!pick2) return;
+  const a = pick1.e, b = pick2.e;
+  const x = segSeg(a.p1, a.p2, b.p1, b.p2, true);
+  if (!x) { UI.log('Lines are parallel.', 'err'); return; }
+  const P = x.p;
+  const keep = (ln, pk) => (V.dot(V.sub(ln.p1, P), V.sub(pk, P)) >= V.dot(V.sub(ln.p2, P), V.sub(pk, P)) ? 'p1' : 'p2');
+  const ka = keep(a, pick1.p), kb = keep(b, pick2.p);
+  const ua = V.norm(V.sub(a[ka], P)), ub = V.norm(V.sub(b[kb], P));
+  const ta = V.add(P, V.mul(ua, App.chamD[0])), tb = V.add(P, V.mul(ub, App.chamD[1]));
+  a[ka === 'p1' ? 'p2' : 'p1'] = ta; b[kb === 'p1' ? 'p2' : 'p1'] = tb;
+  invalidate(a); invalidate(b);
+  if (V.dist(ta, tb) > 1e-9) addEnt(inheritStyle(a, { type: 'line', p1: ta, p2: tb }));
+  App.dirty = true;
+});
+
+// ---------------- LAYER TOOLS ----------------
+async function pickLayerObj(prompt) {
+  const pre = selEnts();
+  if (pre.length) return pre[0];
+  const p = await getEntity(prompt);
+  return p && typeof p === 'object' ? p.e : null;
+}
+def('LAYMCUR', [], "Make the selected object's layer current", async () => {
+  const e = await pickLayerObj('Select object whose layer will become current'); if (!e) return;
+  App.doc.cur = e.layer; UI.log(`${e.layer} is now the current layer.`);
+});
+def('LAYOFF', [], "Turn off the selected object's layer", async () => {
+  for (;;) {
+    const p = await getEntity('Select an object on the layer to be turned off or <exit>'); if (!p || typeof p !== 'object') return;
+    const L = layerOf(p.e);
+    if (L.name === App.doc.cur) { UI.log('Cannot turn off the current layer.', 'err'); continue; }
+    L.on = false; App.dirty = true; UI.log(`Layer "${L.name}" has been turned off.`); UI.refreshLayers();
+  }
+});
+def('LAYON', [], 'Turn all layers on', async () => { App.doc.layers.forEach(l => { l.on = true; }); App.dirty = true; UI.log('All layers have been turned on.'); });
+def('LAYISO', [], "Isolate the selected objects' layers", async () => {
+  const s = await getSelection('Select objects on the layer(s) to be isolated'); if (!s.length) return;
+  const keep = new Set(s.map(e => e.layer));
+  App.doc.layers.forEach(l => { l.on = keep.has(l.name); });
+  if (!keep.has(App.doc.cur)) App.doc.cur = [...keep][0];
+  App.dirty = true; UI.log(`${[...keep].join(', ')} isolated. Use LAYON to restore.`);
+});
+def('LAYLCK', [], "Lock the selected object's layer", async () => {
+  const e = await pickLayerObj('Select an object on the layer to be locked'); if (!e) return;
+  layerOf(e).locked = true; App.sel.clear(); App.dirty = true; UI.log(`Layer "${e.layer}" has been locked.`);
+});
+def('LAYULK', [], 'Unlock a layer by picking an object on it', async () => {
+  const p = await getPoint('Select an object on the layer to be unlocked', { noSnap: true }); if (!isPt(p)) return;
+  const tol = px(6);
+  const e = [...App.doc.ents].reverse().find(x => visible(x) && entDist(x, p) < tol);
+  if (!e) { UI.log('No object found.'); return; }
+  layerOf(e).locked = false; App.dirty = true; UI.log(`Layer "${e.layer}" has been unlocked.`);
+});

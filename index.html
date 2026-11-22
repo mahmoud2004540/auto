@@ -9,7 +9,7 @@
 <body>
 <div id="app">
   <header id="titlebar">
-    <div class="brand"><span class="logo">OD</span><span>OpenDraft&nbsp;CAD</span></div>
+    <div class="brand"><span class="logo" title="Application menu">OD<i>&#9662;</i></span></div>
     <div class="qat">
       <button data-cmd="NEW" title="New (Ctrl+N)" data-icon="new"></button>
       <button data-cmd="OPEN" title="Open .json / .dxf (Ctrl+O)" data-icon="open"></button>
@@ -20,7 +20,7 @@
       <button data-cmd="REDO" title="Redo (Ctrl+Y)" data-icon="redo"></button>
     </div>
     <div id="doctitle">Drawing1</div>
-    <div class="right"><button id="helpBtn" data-cmd="HELP" title="Help (F1)">?</button></div>
+    <div class="right"><input id="search" placeholder="Type a keyword or phrase" autocomplete="off" spellcheck="false"><button id="helpBtn" data-cmd="HELP" title="Help (F1)">?</button></div>
   </header>
 
   <nav id="ribbon">
@@ -56,6 +56,9 @@
         <div id="history"></div>
         <div id="suggest" hidden></div>
         <div id="cmdrow">
+          <button class="clbtn" data-cmd="CANCEL" title="Cancel (Esc)">&#10005;</button>
+          <button class="clbtn" id="clHist" title="Command history (F2)" data-icon="wrench"></button>
+          <button class="clbtn" id="clRecent" title="Recent commands">&#9652;</button>
           <span class="chev">&gt;_</span>
           <span id="prompt">Type a command</span>
           <input id="cmdinput" autocomplete="off" spellcheck="false" autocapitalize="off">
@@ -76,7 +79,6 @@
 
   <footer id="status">
     <div class="ltabs">
-      <button class="lt-menu" data-cmd="TOGGLE_SIDE" title="Show/hide palettes">&#9776;</button>
       <button class="lt active" data-layout="Model">Model</button>
       <button class="lt" data-layout="Layout1">Layout1</button>
       <button class="lt" data-layout="Layout2">Layout2</button>
@@ -86,15 +88,15 @@
     <span id="coords">0.0000, 0.0000</span>
     <span class="model">MODEL</span>
     <div class="toggles">
-      <button data-mode="grid" title="Grid display (F7)">GRID</button>
-      <button data-mode="snap" title="Snap mode (F9)">SNAP</button>
-      <button data-mode="ortho" title="Ortho mode (F8)">ORTHO</button>
-      <button data-mode="polar" title="Polar tracking (F10)">POLAR</button>
-      <button data-mode="osnap" title="Object snap (F3)">OSNAP</button>
-      <button id="osnapMenuBtn" title="Object snap settings">▾</button>
-      <button data-mode="dyn" title="Dynamic input (F12)">DYN</button>
-      <button data-mode="lwt" title="Show/hide lineweight">LWT</button>
-      <button data-cmd="PROPERTIES" title="Properties palette">&#9881;</button>
+      <button data-mode="grid" title="Display drawing grid (F7)" data-icon="st_grid"></button>
+      <button data-mode="snap" title="Snap mode (F9)" data-icon="st_snap"></button>
+      <button data-mode="dyn" title="Dynamic input (F12)" data-icon="st_dyn"></button>
+      <button data-mode="ortho" title="Ortho mode (F8)" data-icon="st_ortho"></button>
+      <button data-mode="polar" title="Polar tracking (F10)" data-icon="st_polar"></button>
+      <button data-mode="osnap" title="Object snap (F3)" data-icon="st_osnap"></button>
+      <button id="osnapMenuBtn" title="Object snap settings">&#9662;</button>
+      <button data-mode="lwt" title="Show/hide lineweight" data-icon="st_lwt"></button>
+      <button data-cmd="TOGGLE_SIDE" title="Properties &amp; Layers palettes" data-icon="st_props"></button>
     </div>
   </footer>
 
@@ -113,6 +115,7 @@
 <script src="js/hatch.js"></script>
 <script src="js/app.js"></script>
 <script src="js/commands.js"></script>
+<script src="js/blocks.js"></script>
 <script src="js/io.js"></script>
 <script src="js/ui.js"></script>
 </body>
