@@ -1,0 +1,596 @@
+// Drawing & editing commands
+'use strict';
+
+const isPt = (v) => v && typeof v === 'object' && 'x' in v;
+const tmpLine = (a, b) => ({ type: 'line', p1: a, p2: b, layer: App.doc.cur });
+const curLayer = () => App.doc.cur;
+
+const Commands = {};
+function def(name, alias, desc, fn, extra = {}) { Commands[name] = Object.assign({ alias, desc, fn }, extra); }
+
+// ---------------- DRAW ----------------
+def('LINE', ['L'], 'Draw straight line segments', async () => {
+  let first = await getPoint('Specify first point');
+  if (!isPt(first)) return;
+  const start = first; const made = [];
+  for (;;) {
+    const kws = made.length >= 2 ? ['Close', 'Undo'] : ['Undo'];
+    const p = await getPoint('Specify next point', { base: first, keywords: kws, preview: (q) => [tmpLine(first, q)] });
+    if (p === null) return;
+    if (p === 'Undo') { const e = made.pop(); if (e) { removeEnts([e]); first = e.p1; } continue; }
+    if (p === 'Close') { addEnt({ type: 'line', p1: first, p2: start }); return; }
+    made.push(addEnt({ type: 'line', p1: first, p2: p })); first = p;
+  }
+});
+
+def('PLINE', ['PL'], 'Draw a polyline', async () => {
+  const p0 = await getPoint('Specify start point');
+  if (!isPt(p0)) return;
+  const pts = [p0];
+  for (;;) {
+    const kws = pts.length >= 3 ? ['Close', 'Undo'] : ['Undo'];
+    const last = pts[pts.length - 1];
+    const p = await getPoint('Specify next point', { base: last, keywords: kws, preview: (q) => [{ type: 'pline', pts: [...pts, q], closed: false, layer: curLayer() }] });
+    if (p === null) break;
+    if (p === 'Undo') { if (pts.length > 1) pts.pop(); continue; }
+    if (p === 'Close') { addEnt({ type: 'pline', pts, closed: true }); return; }
+    pts.push(p);
+  }
+  if (pts.length > 1) addEnt({ type: 'pline', pts, closed: false });
+});
+
+def('CIRCLE', ['C'], 'Draw a circle', async () => {
+  let c = await getPoint('Specify center point for circle', { keywords: ['3P', '2P'] });
+  if (c === '2P') {
+    const a = await getPoint('Specify first end point of diameter'); if (!isPt(a)) return;
+    const b = await getPoint('Specify second end point of diameter', { base: a, preview: (q) => [{ type: 'circle', c: V.mid(a, q), r: V.dist(a, q) / 2, layer: curLayer() }] });
+    if (!isPt(b)) return;
+    addEnt({ type: 'circle', c: V.mid(a, b), r: V.dist(a, b) / 2 }); return;
+  }
+  if (c === '3P') {
+    const a = await getPoint('Specify first point on circle'); if (!isPt(a)) return;
+    const b = await getPoint('Specify second point on circle', { base: a }); if (!isPt(b)) return;
+    const d = await getPoint('Specify third point on circle', { base: b, preview: (q) => { const k = circle3(a, b, q); return k ? [{ type: 'circle', ...k, layer: curLayer() }] : []; } });
+    if (!isPt(d)) return;
+    const k = circle3(a, b, d); if (!k) { UI.log('Points are collinear.', 'err'); return; }
+    addEnt({ type: 'circle', c: k.c, r: k.r }); return;
+  }
+  if (!isPt(c)) return;
+  const def0 = App.lastRadius || 10;
+  let r = await getDist(`Specify radius of circle <${fmt(def0)}>`, { base: c, def: def0, keywords: ['Diameter'], preview: (q) => [{ type: 'circle', c, r: V.dist(c, q), layer: curLayer() }] });
+  if (r === 'Diameter') {
+    const d = await getDist(`Specify diameter of circle <${fmt(def0 * 2)}>`, { base: c, def: def0 * 2, preview: (q) => [{ type: 'circle', c, r: V.dist(c, q) / 2, layer: curLayer() }] });
+    if (typeof d !== 'number') return; r = d / 2;
+  }
+  if (typeof r !== 'number' || r <= 0) return;
+  App.lastRadius = r;
+  addEnt({ type: 'circle', c, r });
+});
+
+function arcFrom3(a, b, c) {
+  const k = circle3(a, b, c); if (!k) return null;
+  let a1 = V.ang(k.c, a), a2 = V.ang(k.c, c);
+  if (V.cross(V.sub(b, a), V.sub(c, b)) < 0) [a1, a2] = [a2, a1];
+  return { type: 'arc', c: k.c, r: k.r, a1, a2 };
+}
+def('ARC', ['A'], 'Draw an arc (3 points or center/start/end)', async () => {
+  const p1 = await getPoint('Specify start point of arc', { keywords: ['Center'] });
+  if (p1 === 'Center') {
+    const c = await getPoint('Specify center point of arc'); if (!isPt(c)) return;
+    const s = await getPoint('Specify start point of arc', { base: c }); if (!isPt(s)) return;
+    const r = V.dist(c, s), a1 = V.ang(c, s);
+    const e = await getPoint('Specify end point of arc (counter-clockwise)', { base: c, preview: (q) => [{ type: 'arc', c, r, a1, a2: V.ang(c, q), layer: curLayer() }] });
+    if (!isPt(e)) return;
+    addEnt({ type: 'arc', c, r, a1, a2: V.ang(c, e) }); return;
+  }
+  if (!isPt(p1)) return;
+  const p2 = await getPoint('Specify second point of arc', { base: p1 }); if (!isPt(p2)) return;
+  const p3 = await getPoint('Specify end point of arc', { base: p2, preview: (q) => { const a = arcFrom3(p1, p2, q); return a ? [{ ...a, layer: curLayer() }] : []; } });
+  if (!isPt(p3)) return;
+  const a = arcFrom3(p1, p2, p3); if (!a) { UI.log('Points are collinear.', 'err'); return; }
+  addEnt(a);
+});
+
+function rectPts(a, b) { return [a, { x: b.x, y: a.y }, b, { x: a.x, y: b.y }]; }
+def('RECTANG', ['REC', 'RECTANGLE'], 'Draw a rectangle', async () => {
+  const a = await getPoint('Specify first corner point'); if (!isPt(a)) return;
+  let b = await getPoint('Specify other corner point', { base: a, rubber: false, keywords: ['Dimensions'], preview: (q) => [{ type: 'pline', pts: rectPts(a, q), closed: true, layer: curLayer() }] });
+  if (b === 'Dimensions') {
+    const w = await getDist('Specify length for rectangles', { base: a }); if (typeof w !== 'number') return;
+    const h = await getDist('Specify width for rectangles', { base: a }); if (typeof h !== 'number') return;
+    const q = await getPoint('Specify other corner point (side)', { base: a, rubber: false, preview: (q) => [{ type: 'pline', pts: rectPts(a, { x: a.x + Math.sign(q.x - a.x || 1) * w, y: a.y + Math.sign(q.y - a.y || 1) * h }), closed: true, layer: curLayer() }] });
+    if (!isPt(q)) return;
+    b = { x: a.x + Math.sign(q.x - a.x || 1) * w, y: a.y + Math.sign(q.y - a.y || 1) * h };
+  }
+  if (!isPt(b)) return;
+  addEnt({ type: 'pline', pts: rectPts(a, b), closed: true });
+});
+
+def('POLYGON', ['POL'], 'Draw a regular polygon', async () => {
+  const n0 = App.lastSides || 6;
+  let n = await getDist(`Enter number of sides <${n0}>`, { def: n0 });
+  if (typeof n !== 'number') return; n = Math.round(n);
+  if (n < 3 || n > 1024) { UI.log('Requires an integer between 3 and 1024.', 'err'); return; }
+  App.lastSides = n;
+  const c = await getPoint('Specify center of polygon'); if (!isPt(c)) return;
+  const kw = await getKeyword('Enter an option [Inscribed in circle/Circumscribed about circle] <I>', { keywords: ['Inscribed', 'Circumscribed'], def: 'Inscribed' });
+  const ins = kw !== 'Circumscribed';
+  const mk = (q) => {
+    const r0 = V.dist(c, q), a0 = V.ang(c, q);
+    const R = ins ? r0 : r0 / Math.cos(Math.PI / n), off = ins ? 0 : Math.PI / n;
+    const pts = []; for (let i = 0; i < n; i++) pts.push(V.polar(c, a0 + off + i * TAU / n, R));
+    return { type: 'pline', pts, closed: true };
+  };
+  const q = await getPoint('Specify radius of circle', { base: c, preview: (q) => [{ ...mk(q), layer: curLayer() }] });
+  if (typeof q === 'number') { addEnt(mk(V.polar(c, Math.PI / 2, q))); return; }
+  if (!isPt(q)) return;
+  addEnt(mk(q));
+});
+
+def('ELLIPSE', ['EL'], 'Draw an ellipse (as polyline)', async () => {
+  const c = await getPoint('Specify center of ellipse'); if (!isPt(c)) return;
+  const a = await getPoint('Specify endpoint of axis', { base: c }); if (!isPt(a)) return;
+  const ra = V.dist(c, a), ang = V.ang(c, a);
+  const mk = (rb) => {
+    const pts = []; const n = 96;
+    for (let i = 0; i < n; i++) { const t = i * TAU / n; const x = Math.cos(t) * ra, y = Math.sin(t) * rb; pts.push({ x: c.x + x * Math.cos(ang) - y * Math.sin(ang), y: c.y + x * Math.sin(ang) + y * Math.cos(ang) }); }
+    return { type: 'pline', pts, closed: true };
+  };
+  const rb = await getDist('Specify distance to other axis', { base: c, preview: (q) => [{ ...mk(V.dist(c, q)), layer: curLayer() }] });
+  if (typeof rb !== 'number') return;
+  addEnt(mk(rb));
+});
+
+def('TEXT', ['T', 'DT', 'DTEXT', 'MTEXT', 'MT'], 'Create single-line text', async () => {
+  const p = await getPoint('Specify start point of text'); if (!isPt(p)) return;
+  const h0 = App.doc.textH;
+  const h = await getDist(`Specify height <${fmt(h0)}>`, { base: p, def: h0 }); if (typeof h !== 'number') return;
+  App.doc.textH = h;
+  const r = await getAngle('Specify rotation angle of text <0>', { base: p, def: 0 }); if (typeof r !== 'number') return;
+  let at = p;
+  for (;;) {
+    const s = await getString('Enter text (empty line to finish)');
+    if (!s) return;
+    addEnt({ type: 'text', p: at, h, rot: r, s });
+    at = V.polar(at, r - Math.PI / 2, h * 1.6);
+  }
+});
+
+async function dimCommand(aligned) {
+  const p1 = await getPoint('Specify first extension line origin'); if (!isPt(p1)) return;
+  const p2 = await getPoint('Specify second extension line origin', { base: p1 }); if (!isPt(p2)) return;
+  const h = App.doc.dimH;
+  const layer = App.doc.layers.find(l => l.name === 'Dimensions') ? 'Dimensions' : App.doc.cur;
+  const mk = (q) => {
+    let ang;
+    if (aligned) ang = V.ang(p1, p2);
+    else {
+      const mx = Math.min(p1.x, p2.x), Mx = Math.max(p1.x, p2.x), my = Math.min(p1.y, p2.y), My = Math.max(p1.y, p2.y);
+      const outX = q.x < mx || q.x > Mx, outY = q.y < my || q.y > My;
+      ang = (outX && !outY) ? Math.PI / 2 : 0;
+      if (outX && outY) ang = Math.abs(q.x - (mx + Mx) / 2) - (Mx - mx) / 2 > Math.abs(q.y - (my + My) / 2) - (My - my) / 2 ? Math.PI / 2 : 0;
+    }
+    return { type: 'dim', p1, p2, p3: q, ang, h, layer };
+  };
+  const q = await getPoint('Specify dimension line location', { rubber: false, preview: (q) => [mk(q)] });
+  if (!isPt(q)) return;
+  const d = addEnt(mk(q));
+  UI.log(`Dimension text = ${fmt(dimGeom(d).value, 4)}`);
+}
+def('DIMLINEAR', ['DLI', 'DIM'], 'Horizontal/vertical dimension', () => dimCommand(false));
+def('DIMALIGNED', ['DAL'], 'Aligned dimension', () => dimCommand(true));
+
+// ---------------- MODIFY ----------------
+def('ERASE', ['E', 'DELETE'], 'Erase objects', async () => {
+  const s = await getSelection(); if (!s || !s.length) return;
+  removeEnts(s); UI.log(`${s.length} object(s) erased.`);
+});
+
+function previewTransformed(ents, mfn) {
+  return (q) => { const m = mfn(q); if (!m) return []; return ents.map(e => { const c = entTransform(entClone(e), m); c.dash = false; return c; }); };
+}
+
+async function baseSecond(verb) {
+  const b = await getPoint('Specify base point', { keywords: ['Displacement'] });
+  if (b === 'Displacement') {
+    const d = await getPoint('Specify displacement <0,0>', { def: { x: 0, y: 0 } });
+    return isPt(d) ? { base: { x: 0, y: 0 }, disp: d } : null;
+  }
+  return isPt(b) ? { base: b } : null;
+}
+
+def('MOVE', ['M'], 'Move objects', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  const bs = await baseSecond(); if (!bs) return;
+  let to = bs.disp;
+  if (!to) { to = await getPoint('Specify second point', { base: bs.base, preview: previewTransformed(s, q => M.translate(q.x - bs.base.x, q.y - bs.base.y)) }); if (!isPt(to)) return; }
+  const m = M.translate(to.x - bs.base.x, to.y - bs.base.y);
+  s.forEach(e => entTransform(e, m));
+});
+
+def('COPY', ['CO', 'CP'], 'Copy objects', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  const bs = await baseSecond(); if (!bs) return;
+  if (bs.disp) { const m = M.translate(bs.disp.x, bs.disp.y); s.forEach(e => addEnt(entTransform(entClone(e), m))); return; }
+  for (;;) {
+    const to = await getPoint('Specify second point or <exit>', { base: bs.base, keywords: ['Array'], preview: previewTransformed(s, q => M.translate(q.x - bs.base.x, q.y - bs.base.y)) });
+    if (to === 'Array') {
+      let n = await getDist('Enter number of items to array <3>', { def: 3 }); if (typeof n !== 'number') return; n = Math.max(2, Math.round(n));
+      const q = await getPoint('Specify second point', { base: bs.base }); if (!isPt(q)) return;
+      for (let i = 1; i < n; i++) { const m = M.translate((q.x - bs.base.x) * i, (q.y - bs.base.y) * i); s.forEach(e => addEnt(entTransform(entClone(e), m))); }
+      return;
+    }
+    if (!isPt(to)) return;
+    const m = M.translate(to.x - bs.base.x, to.y - bs.base.y);
+    s.forEach(e => { const c = entClone(e); delete c.id; addEnt(entTransform(c, m)); });
+  }
+});
+
+def('ROTATE', ['RO'], 'Rotate objects', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  const b = await getPoint('Specify base point'); if (!isPt(b)) return;
+  const a = await getAngle('Specify rotation angle', { base: b, keywords: ['Copy', 'Reference'], preview: previewTransformed(s, q => M.rotate(b, V.ang(b, q))) });
+  let ang = a, copy = false;
+  if (a === 'Copy') { copy = true; ang = await getAngle('Specify rotation angle', { base: b, preview: previewTransformed(s, q => M.rotate(b, V.ang(b, q))) }); }
+  if (ang === 'Reference') {
+    const r1 = await getAngle('Specify the reference angle <0>', { def: 0 }); if (typeof r1 !== 'number') return;
+    const r2 = await getAngle('Specify the new angle', { base: b }); if (typeof r2 !== 'number') return;
+    ang = r2 - r1;
+  }
+  if (typeof ang !== 'number') return;
+  const m = M.rotate(b, ang);
+  s.forEach(e => copy ? addEnt(entTransform(entClone(e), m)) : entTransform(e, m));
+});
+
+def('SCALE', ['SC'], 'Scale objects', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  const b = await getPoint('Specify base point'); if (!isPt(b)) return;
+  let k = await getDist('Specify scale factor', { base: b, keywords: ['Copy', 'Reference'], preview: previewTransformed(s, q => { const d = V.dist(b, q); return d > 1e-9 ? M.scale(b, d) : null; }) });
+  let copy = false;
+  if (k === 'Copy') { copy = true; k = await getDist('Specify scale factor', { base: b }); }
+  if (k === 'Reference') {
+    const r1 = await getDist('Specify reference length <1>', { def: 1 }); if (typeof r1 !== 'number') return;
+    const r2 = await getDist('Specify new length', { base: b }); if (typeof r2 !== 'number') return;
+    k = r2 / r1;
+  }
+  if (typeof k !== 'number' || k <= 0) return;
+  const m = M.scale(b, k);
+  s.forEach(e => copy ? addEnt(entTransform(entClone(e), m)) : entTransform(e, m));
+});
+
+def('MIRROR', ['MI'], 'Mirror objects', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  const a = await getPoint('Specify first point of mirror line'); if (!isPt(a)) return;
+  const b = await getPoint('Specify second point of mirror line', { base: a, preview: previewTransformed(s, q => V.dist(a, q) > 1e-9 ? M.mirror(a, q) : null) });
+  if (!isPt(b) || V.dist(a, b) < 1e-9) return;
+  const kw = await getKeyword('Erase source objects? [Yes/No] <No>', { keywords: ['Yes', 'No'], def: 'No' });
+  const m = M.mirror(a, b);
+  s.forEach(e => kw === 'Yes' ? entTransform(e, m) : addEnt(entTransform(entClone(e), m)));
+});
+
+def('ARRAYRECT', ['AR', 'ARRAY'], 'Rectangular array', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  let rows = await getDist('Enter number of rows <3>', { def: 3 }); if (typeof rows !== 'number') return;
+  let cols = await getDist('Enter number of columns <4>', { def: 4 }); if (typeof cols !== 'number') return;
+  rows = Math.max(1, Math.round(rows)); cols = Math.max(1, Math.round(cols));
+  const dy = rows > 1 ? await getDist('Specify the distance between rows <20>', { def: 20 }) : 0; if (typeof dy !== 'number') return;
+  const dx = cols > 1 ? await getDist('Specify the distance between columns <20>', { def: 20 }) : 0; if (typeof dx !== 'number') return;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    if (!r && !c) continue;
+    const m = M.translate(c * dx, r * dy);
+    s.forEach(e => addEnt(entTransform(entClone(e), m)));
+  }
+});
+
+def('ARRAYPOLAR', ['ARP'], 'Polar array', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  const c = await getPoint('Specify center point of array'); if (!isPt(c)) return;
+  let n = await getDist('Enter number of items <6>', { def: 6 }); if (typeof n !== 'number') return; n = Math.max(2, Math.round(n));
+  const fill = await getDist('Specify the angle to fill <360>', { def: 360 }); if (typeof fill !== 'number') return;
+  const step = Math.abs(fill - 360) < 1e-9 ? TAU / n : rad(fill) / (n - 1);
+  for (let i = 1; i < n; i++) { const m = M.rotate(c, step * i); s.forEach(e => addEnt(entTransform(entClone(e), m))); }
+});
+
+def('EXPLODE', ['X'], 'Explode polylines and dimensions', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  let n = 0;
+  for (const e of s) {
+    const parts = Types[e.type].explode(e);
+    if (!parts) continue;
+    removeEnts([e]); parts.forEach(p => { p.layer = e.layer; if (e.color) p.color = e.color; addEnt(p); }); n++;
+  }
+  UI.log(n ? `${n} object(s) exploded.` : 'Nothing to explode.');
+});
+
+// offset
+function offsetEnt(e, d, side) {
+  if (e.type === 'line') {
+    const n = V.perp(V.norm(V.sub(e.p2, e.p1)));
+    const sgn = V.dot(V.sub(side, e.p1), n) >= 0 ? 1 : -1;
+    const o = V.mul(n, d * sgn);
+    return { type: 'line', p1: V.add(e.p1, o), p2: V.add(e.p2, o) };
+  }
+  if (e.type === 'circle' || e.type === 'arc') {
+    const out = V.dist(side, e.c) > e.r;
+    const r = e.r + (out ? d : -d); if (r <= 1e-9) return null;
+    return { ...entClone(e), r, id: undefined };
+  }
+  if (e.type === 'pline') {
+    const pts = e.pts, n = pts.length; if (n < 2) return null;
+    // side: find nearest segment & sign
+    let bi = 0, bd = Infinity; const segs = e.closed ? n : n - 1;
+    for (let i = 0; i < segs; i++) { const dd = ptSegDist(side, pts[i], pts[(i + 1) % n]); if (dd < bd) { bd = dd; bi = i; } }
+    const nn = V.perp(V.norm(V.sub(pts[(bi + 1) % n], pts[bi])));
+    const sgn = V.dot(V.sub(side, pts[bi]), nn) >= 0 ? 1 : -1;
+    const lines = [];
+    for (let i = 0; i < segs; i++) {
+      const a = pts[i], b = pts[(i + 1) % n];
+      const o = V.mul(V.perp(V.norm(V.sub(b, a))), d * sgn);
+      lines.push([V.add(a, o), V.add(b, o)]);
+    }
+    const res = [];
+    for (let i = 0; i < n; i++) {
+      const prev = e.closed ? lines[(i - 1 + segs) % segs] : lines[i - 1];
+      const next = lines[i] || null;
+      if (prev && next) { const x = segSeg(prev[0], prev[1], next[0], next[1], true); res.push(x ? x.p : next[0]); }
+      else if (next) res.push(next[0]);
+      else res.push(prev[1]);
+    }
+    return { type: 'pline', pts: res, closed: e.closed };
+  }
+  return null;
+}
+def('OFFSET', ['O'], 'Offset lines, circles, arcs, polylines', async () => {
+  const d0 = App.lastOffset || 10;
+  const d = await getDist(`Specify offset distance <${fmt(d0)}>`, { def: d0 });
+  if (typeof d !== 'number' || d <= 0) return;
+  App.lastOffset = d;
+  for (;;) {
+    App.sel.clear();
+    const pick = await getEntity('Select object to offset or <exit>', { filter: e => ['line', 'circle', 'arc', 'pline'].includes(e.type) });
+    if (!pick) return;
+    App.sel.add(pick.e.id); App.dirty = true;
+    const side = await getPoint('Specify point on side to offset', { noSnap: true, preview: (q) => { const o = offsetEnt(pick.e, d, q); return o ? [{ ...o, layer: pick.e.layer }] : []; } });
+    App.sel.clear();
+    if (!isPt(side)) return;
+    const o = offsetEnt(pick.e, d, side);
+    if (o) { o.layer = pick.e.layer; if (pick.e.color) o.color = pick.e.color; delete o.id; addEnt(o); }
+  }
+});
+
+// trim / extend helpers
+function cutParamsLine(e, others) {
+  const ts = [];
+  for (const o of others) for (const pl of entApprox(o)) for (let i = 0; i < pl.length - 1; i++) {
+    const r = segSeg(e.p1, e.p2, pl[i], pl[i + 1]); if (r && r.t > 1e-7 && r.t < 1 - 1e-7) ts.push(r.t);
+  }
+  return ts.sort((a, b) => a - b);
+}
+function cutAnglesCircle(c, r, others) {
+  const as = [];
+  for (const o of others) for (const pl of entApprox(o)) for (let i = 0; i < pl.length - 1; i++)
+    for (const x of segCircle(pl[i], pl[i + 1], c, r)) as.push(normAng(V.ang(c, x.p)));
+  return as;
+}
+function trimEnt(e, pick, others) {
+  if (e.type === 'line') {
+    const ts = cutParamsLine(e, others); if (!ts.length) return null;
+    const t0 = closestOnSeg(pick, e.p1, e.p2).t;
+    const lo = ts.filter(t => t < t0).pop(), hi = ts.find(t => t > t0);
+    const out = [];
+    if (lo !== undefined) out.push({ type: 'line', p1: e.p1, p2: V.lerp(e.p1, e.p2, lo) });
+    if (hi !== undefined) out.push({ type: 'line', p1: V.lerp(e.p1, e.p2, hi), p2: e.p2 });
+    return out;
+  }
+  if (e.type === 'circle') {
+    const as = cutAnglesCircle(e.c, e.r, others); if (as.length < 2) return null;
+    const a0 = normAng(V.ang(e.c, pick));
+    const rel = as.map(a => normAng(a - a0)).sort((x, y) => x - y);
+    // remove from previous cut (before a0) to next cut (after a0); keep the rest
+    const next = a0 + rel[0], prev = a0 + rel[rel.length - 1];
+    return [{ type: 'arc', c: e.c, r: e.r, a1: next, a2: prev }];
+  }
+  if (e.type === 'arc') {
+    const span = normAng(e.a2 - e.a1) || TAU;
+    const us = cutAnglesCircle(e.c, e.r, others).map(a => normAng(a - e.a1)).filter(u => u > 1e-7 && u < span - 1e-7).sort((a, b) => a - b);
+    if (!us.length) return null;
+    const u0 = normAng(V.ang(e.c, pick) - e.a1);
+    const lo = us.filter(u => u < u0).pop(), hi = us.find(u => u > u0);
+    const out = [];
+    if (lo !== undefined) out.push({ type: 'arc', c: e.c, r: e.r, a1: e.a1, a2: e.a1 + lo });
+    if (hi !== undefined) out.push({ type: 'arc', c: e.c, r: e.r, a1: e.a1 + hi, a2: e.a2 });
+    return out;
+  }
+  if (e.type === 'pline') {
+    // explode, trim the picked segment, keep others as lines
+    const parts = Types.pline.explode(e);
+    let bi = 0, bd = Infinity;
+    parts.forEach((p, i) => { const d = ptSegDist(pick, p.p1, p.p2); if (d < bd) { bd = d; bi = i; } });
+    const t = trimEnt(parts[bi], pick, [...others, ...parts.filter((_, i) => i !== bi)]);
+    if (!t) return null;
+    parts.splice(bi, 1, ...t);
+    return parts;
+  }
+  return null;
+}
+def('TRIM', ['TR'], 'Trim objects at intersections', async () => {
+  UI.log('Current settings: Edges = all objects (quick trim)');
+  for (;;) {
+    App.sel.clear();
+    const pick = await getEntity('Select object to trim or <exit>', { filter: e => ['line', 'circle', 'arc', 'pline'].includes(e.type) });
+    if (!pick) return;
+    const others = App.doc.ents.filter(o => o !== pick.e && visible(o));
+    const res = trimEnt(pick.e, pick.p, others);
+    if (!res) {
+      // nothing intersects: delete like quick-trim does
+      removeEnts([pick.e]); continue;
+    }
+    const src = pick.e;
+    removeEnts([src]);
+    res.forEach(r => { r.layer = src.layer; if (src.color) r.color = src.color; addEnt(r); });
+  }
+});
+
+def('EXTEND', ['EX'], 'Extend lines to the nearest boundary', async () => {
+  for (;;) {
+    const pick = await getEntity('Select line to extend (pick near the end) or <exit>', { filter: e => e.type === 'line' });
+    if (!pick) return;
+    const e = pick.e;
+    const nearStart = V.dist(pick.p, e.p1) < V.dist(pick.p, e.p2);
+    const from = nearStart ? e.p2 : e.p1, to = nearStart ? e.p1 : e.p2;
+    let best = null, bt = Infinity;
+    for (const o of App.doc.ents) {
+      if (o === e || !visible(o)) continue;
+      for (const pl of entApprox(o)) for (let i = 0; i < pl.length - 1; i++) {
+        const r = segSeg(from, to, pl[i], pl[i + 1], true);
+        if (r && r.t > 1 + 1e-7 && r.u >= -1e-9 && r.u <= 1 + 1e-9 && r.t < bt) { bt = r.t; best = r.p; }
+      }
+    }
+    if (!best) { UI.log('Object does not intersect an edge.'); continue; }
+    if (nearStart) e.p1 = best; else e.p2 = best;
+    invalidate(e); App.dirty = true;
+  }
+});
+
+def('FILLET', ['F'], 'Fillet two lines (radius 0 = corner)', async () => {
+  const r0 = App.filletR || 0;
+  let pick1 = await getEntity(`Select first line or [Radius] (radius = ${fmt(r0)})`, { filter: e => e.type === 'line', keywords: ['Radius'] });
+  if (pick1 === 'Radius') {
+    const r = await getDist(`Specify fillet radius <${fmt(r0)}>`, { def: r0 }); if (typeof r !== 'number') return;
+    App.filletR = r;
+    pick1 = await getEntity('Select first line', { filter: e => e.type === 'line' });
+  }
+  if (!pick1 || typeof pick1 !== 'object') return;
+  App.sel.add(pick1.e.id); App.dirty = true;
+  const pick2 = await getEntity('Select second line', { filter: e => e.type === 'line' && e !== pick1.e });
+  App.sel.clear();
+  if (!pick2) return;
+  const a = pick1.e, b = pick2.e, R = App.filletR || 0;
+  const x = segSeg(a.p1, a.p2, b.p1, b.p2, true);
+  if (!x) { UI.log('Lines are parallel.', 'err'); return; }
+  const P = x.p;
+  // keep the side of each line where the user picked
+  const keepFar = (ln, pk) => {
+    const d1 = V.dot(V.sub(ln.p1, P), V.sub(pk, P)), d2 = V.dot(V.sub(ln.p2, P), V.sub(pk, P));
+    return d1 >= d2 ? 'p1' : 'p2';
+  };
+  const ka = keepFar(a, pick1.p), kb = keepFar(b, pick2.p);
+  const ua = V.norm(V.sub(a[ka], P)), ub = V.norm(V.sub(b[kb], P));
+  if (R <= 1e-9) {
+    a[ka === 'p1' ? 'p2' : 'p1'] = P; b[kb === 'p1' ? 'p2' : 'p1'] = P;
+  } else {
+    const theta = Math.acos(Math.max(-1, Math.min(1, V.dot(ua, ub))));
+    const t = R / Math.tan(theta / 2);
+    const ta = V.add(P, V.mul(ua, t)), tb = V.add(P, V.mul(ub, t));
+    const bis = V.norm(V.add(ua, ub));
+    const c = V.add(P, V.mul(bis, R / Math.sin(theta / 2)));
+    a[ka === 'p1' ? 'p2' : 'p1'] = ta; b[kb === 'p1' ? 'p2' : 'p1'] = tb;
+    let a1 = V.ang(c, ta), a2 = V.ang(c, tb);
+    if (normAng(a2 - a1) > Math.PI) [a1, a2] = [a2, a1];
+    addEnt({ type: 'arc', c, r: R, a1, a2, layer: a.layer });
+  }
+  invalidate(a); invalidate(b); App.dirty = true;
+});
+
+// ---------------- INQUIRY ----------------
+def('DIST', ['DI'], 'Measure distance between two points', async () => {
+  const a = await getPoint('Specify first point'); if (!isPt(a)) return;
+  const b = await getPoint('Specify second point', { base: a }); if (!isPt(b)) return;
+  const d = V.sub(b, a);
+  UI.log(`Distance = ${fmt(V.len(d))},  Angle in XY Plane = ${fmt(deg(normAng(V.ang(a, b))), 2)}°,  Delta X = ${fmt(d.x)},  Delta Y = ${fmt(d.y)}`, 'info');
+}, { noUndo: true });
+
+def('AREA', ['AA', 'MEASUREAREA'], 'Measure area by points', async () => {
+  const pts = [];
+  for (;;) {
+    const p = await getPoint(pts.length ? 'Specify next point or <total>' : 'Specify first corner point', { base: pts[pts.length - 1], preview: (q) => pts.length ? [{ type: 'pline', pts: [...pts, q], closed: true, layer: curLayer(), color: '#4cd964' }] : [] });
+    if (!isPt(p)) break; pts.push(p);
+  }
+  if (pts.length < 3) return;
+  let A = 0, L = 0;
+  for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[(i + 1) % pts.length]; A += V.cross(a, b); L += V.dist(a, b); }
+  UI.log(`Area = ${fmt(Math.abs(A / 2))},  Perimeter = ${fmt(L)}`, 'info');
+}, { noUndo: true });
+
+def('ID', [], 'Show coordinates of a point', async () => {
+  const p = await getPoint('Specify point'); if (!isPt(p)) return;
+  UI.log(`X = ${fmt(p.x)}   Y = ${fmt(p.y)}`, 'info');
+}, { noUndo: true });
+
+def('LIST', ['LI'], 'List object properties', async () => {
+  const s = await getSelection(); if (!s.length) return;
+  for (const e of s) {
+    UI.log(`${Types[e.type].label.toUpperCase()}  Layer: "${e.layer}"`, 'info');
+    for (const p of Types[e.type].props(e)) UI.log(`    ${p.k}: ${typeof p.v === 'number' ? fmt(p.v) : p.v}`, 'info');
+  }
+  UI.showHistory(true);
+}, { noUndo: true });
+
+// ---------------- VIEW / UTIL ----------------
+def('ZOOM', ['Z'], 'Zoom (Extents / Window / In / Out)', async () => {
+  const k = await getPoint('Specify corner of window, or [Extents/In/Out/Window] <Extents>', { keywords: ['Extents', 'In', 'Out', 'Window', 'All'], rubber: false, noSnap: true });
+  if (k === null || k === 'Extents' || k === 'All') { zoomExtents(); return; }
+  if (k === 'In') { zoomAt({ x: CW / 2, y: CH / 2 }, 2); return; }
+  if (k === 'Out') { zoomAt({ x: CW / 2, y: CH / 2 }, 0.5); return; }
+  const a = k === 'Window' ? await getPoint('Specify first corner', { noSnap: true }) : k;
+  if (!isPt(a)) return;
+  const b = await getPoint('Specify opposite corner', { noSnap: true, rubber: false, preview: (q) => [{ type: 'pline', pts: rectPts(a, q), closed: true, color: '#4a8cff' }] });
+  if (!isPt(b)) return;
+  zoomRect(rectNorm(a, b), 0);
+}, { noUndo: true, noRepeat: true });
+
+def('PAN', ['P'], 'Pan the view', async () => {
+  const a = await getPoint('Specify base point', { noSnap: true }); if (!isPt(a)) return;
+  const b = await getPoint('Specify second point', { base: a, noSnap: true }); if (!isPt(b)) return;
+  App.view.cx -= b.x - a.x; App.view.cy -= b.y - a.y; App.dirty = true;
+}, { noUndo: true });
+
+def('UNDO', ['U'], 'Undo last action', async () => {
+  if (!App.undo.length) { UI.log('Nothing to undo.'); return; }
+  App.redo.push(snapshot()); restore(App.undo.pop()); UI.log('Undo.');
+}, { noUndo: true, noRepeat: true });
+def('REDO', ['MREDO'], 'Redo', async () => {
+  if (!App.redo.length) { UI.log('Nothing to redo.'); return; }
+  App.undo.push(snapshot()); restore(App.redo.pop()); UI.log('Redo.');
+}, { noUndo: true, noRepeat: true });
+
+def('SELECTALL', ['ALL'], 'Select all objects', async () => {
+  App.doc.ents.filter(editable).forEach(e => App.sel.add(e.id)); App.dirty = true; UI.log(`${App.sel.size} selected.`);
+}, { noUndo: true, noRepeat: true });
+
+def('LAYER', ['LA'], 'Open the layer manager', async () => { UI.openPanel('layers'); }, { noUndo: true, noRepeat: true });
+def('PROPERTIES', ['PR', 'PROPS', 'CH'], 'Open properties palette', async () => { UI.openPanel('props'); }, { noUndo: true, noRepeat: true });
+def('MATCHPROP', ['MA'], 'Match properties (layer & color)', async () => {
+  const src = await getEntity('Select source object'); if (!src) return;
+  for (;;) {
+    const t = await getEntity('Select destination object(s) or <exit>'); if (!t) return;
+    t.e.layer = src.e.layer; if (src.e.color) t.e.color = src.e.color; else delete t.e.color;
+    if (src.e.h && t.e.h) t.e.h = src.e.h;
+    invalidate(t.e); App.dirty = true;
+  }
+});
+
+const toggleCmd = (key, label) => async () => {
+  const k = await getKeyword(`Enter mode [ON/OFF] <${App.modes[key] ? 'OFF' : 'ON'}>`, { keywords: ['ON', 'OFF'], def: App.modes[key] ? 'OFF' : 'ON' });
+  App.modes[key] = k === 'ON'; UI.refreshStatus(); UI.log(`<${label} ${App.modes[key] ? 'on' : 'off'}>`);
+};
+def('GRID', [], 'Toggle grid display', async () => {
+  const v = await getDist(`Specify grid spacing or [ON/OFF] <${fmt(App.gridSize)}>`, { keywords: ['ON', 'OFF'], def: App.gridSize });
+  if (v === 'ON' || v === 'OFF') App.modes.grid = v === 'ON'; else if (typeof v === 'number' && v > 0) { App.gridSize = v; App.modes.grid = true; }
+  UI.refreshStatus(); App.dirty = true;
+}, { noUndo: true });
+def('SNAP', ['SN'], 'Set snap spacing', async () => {
+  const v = await getDist(`Specify snap spacing or [ON/OFF] <${fmt(App.snapSize)}>`, { keywords: ['ON', 'OFF'], def: App.snapSize });
+  if (v === 'ON' || v === 'OFF') App.modes.snap = v === 'ON'; else if (typeof v === 'number' && v > 0) { App.snapSize = v; App.modes.snap = true; }
+  UI.refreshStatus();
+}, { noUndo: true });
+def('ORTHO', [], 'Toggle ortho mode', toggleCmd('ortho', 'Ortho'), { noUndo: true });
+def('OSNAP', ['OS'], 'Object snap settings', async () => { UI.toggleOsnapMenu(true); }, { noUndo: true, noRepeat: true });
+
+def('NEW', ['QNEW'], 'New drawing', async () => { IO.newDrawing(); }, { noUndo: true, noRepeat: true });
+def('OPEN', [], 'Open drawing (.json / .dxf)', async () => { IO.open(); }, { noUndo: true, noRepeat: true });
+def('SAVE', ['QSAVE', 'SAVEAS'], 'Save drawing (.json)', async () => { IO.save(); }, { noUndo: true, noRepeat: true });
+def('DXFOUT', ['EXPORT', 'DXF'], 'Export DXF', async () => { IO.exportDXF(); }, { noUndo: true, noRepeat: true });
+def('SVGOUT', ['SVG'], 'Export SVG', async () => { IO.exportSVG(); }, { noUndo: true, noRepeat: true });
+def('PNGOUT', ['PNG', 'PLOT', 'PRINT'], 'Export PNG image', async () => { IO.exportPNG(); }, { noUndo: true, noRepeat: true });
+def('HELP', ['?', 'F1'], 'Show command list', async () => { UI.showHelp(); }, { noUndo: true, noRepeat: true });
